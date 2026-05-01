@@ -767,63 +767,114 @@ int main() {
             </div>
 
             {/* Customization Panel */}
-            <div className={`editor-surface rounded-[24px] p-3 space-y-4 shadow-sm sm:p-4 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar ${surfaceClass}`}>
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className={`editor-surface rounded-[24px] p-3 space-y-5 shadow-sm sm:p-4 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar ${surfaceClass}`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${isDarkTheme ? "border-slate-700" : "border-slate-200"}`}>
                 <span className={`editor-heading text-sm font-bold ${headingClass}`}>Customization</span>
-                 <Sparkles className="h-4 w-4 text-fuchsia-400" />
+                <Sparkles className="h-4 w-4 text-fuchsia-400" />
               </div>
 
-              <section>
-                <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3 block">Background</label>
-                <div className="grid grid-cols-3 gap-2">
+              {/* Background — 2 cols on mobile, 3 on sm+ */}
+              <section className="space-y-2">
+                <label className={`text-[10px] uppercase tracking-widest font-bold mb-2 block ${isDarkTheme ? "text-slate-400" : "text-slate-500"}`}>Background</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(Object.keys(backgroundMap) as Background[]).map(b => (
-                    <button key={b} onClick={() => setBackground(b)} className={`rounded-xl border px-2 py-2 text-[10px] capitalize transition ${background === b ? "border-cyan-400 bg-cyan-50 text-slate-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                    <button
+                      key={b}
+                      onClick={() => setBackground(b)}
+                      className={`rounded-xl border px-2 py-2 text-[10px] capitalize transition truncate ${
+                        background === b
+                          ? isDarkTheme ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-cyan-400 bg-cyan-50 text-slate-900"
+                          : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
                       {b}
                     </button>
                   ))}
                 </div>
               </section>
 
-              <section className="space-y-4">
-                 <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Box Styling</label>
-                  <div className="space-y-3">
-                    <SliderRow label="Padding" valueLabel={`${padding}px`} value={padding} min={0} max={120} onChange={setPadding} />
-                    <SliderRow label="Glass Opacity" valueLabel={`${Math.round(opacity * 100)}%`} value={opacity} min={0} max={1} step={0.05} onChange={setOpacity} />
-                    <SliderRow label="Radius" valueLabel={`${radius}px`} value={radius} min={0} max={64} onChange={setRadius} />
-                 </div>
+              {/* Box Styling */}
+              <section className="space-y-3">
+                <label className={`text-[10px] uppercase tracking-widest font-bold block ${isDarkTheme ? "text-slate-400" : "text-slate-500"}`}>Box Styling</label>
+                <SliderRow label="Padding" valueLabel={`${padding}px`} value={padding} min={0} max={120} onChange={setPadding} />
+                <SliderRow label="Glass Opacity" valueLabel={`${Math.round(opacity * 100)}%`} value={opacity} min={0} max={1} step={0.05} onChange={setOpacity} />
+                <SliderRow label="Radius" valueLabel={`${radius}px`} value={radius} min={0} max={64} onChange={setRadius} />
               </section>
 
-              <section className="space-y-4">
-                 <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">3D Perspective (Beta)</label>
-                  <div className="space-y-3">
-                    <SliderRow label="Tilt X" valueLabel={`${tiltX}°`} value={tiltX} min={-30} max={30} onChange={setTiltX} tone="cyan" />
-                    <SliderRow label="Tilt Y" valueLabel={`${tiltY}°`} value={tiltY} min={-30} max={30} onChange={setTiltY} tone="cyan" />
-                 </div>
+              {/* 3D Perspective */}
+              <section className="space-y-3">
+                <label className={`text-[10px] uppercase tracking-widest font-bold block ${isDarkTheme ? "text-slate-400" : "text-slate-500"}`}>3D Perspective (Beta)</label>
+                <SliderRow label="Tilt X" valueLabel={`${tiltX}°`} value={tiltX} min={-30} max={30} onChange={setTiltX} tone="cyan" />
+                <SliderRow label="Tilt Y" valueLabel={`${tiltY}°`} value={tiltY} min={-30} max={30} onChange={setTiltY} tone="cyan" />
               </section>
 
-              <section className="space-y-4">
-                 <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block">Aesthetic</label>
-                 <div className="space-y-3">
-                    <input 
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-2 text-xs text-white placeholder:text-slate-600 outline-none focus:border-fuchsia-400 transition"
-                      placeholder="Card Title..."
-                      value={cardTitle}
-                      onChange={(e) => setCardTitle(e.target.value)}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                       <button onClick={() => setTheme("dark")} className={`rounded-xl py-2 text-xs border ${theme === 'dark' ? 'border-fuchsia-400 bg-fuchsia-400/10' : 'border-white/5 bg-slate-950/50 text-slate-400'}`}>Dark Theme</button>
-                       <button onClick={() => setTheme("light")} className={`rounded-xl py-2 text-xs border ${theme === 'light' ? 'border-fuchsia-400 bg-fuchsia-400/10' : 'border-white/5 bg-slate-950/50 text-slate-400'}`}>Light Theme</button>
-                    </div>
-                    <div className="flex gap-2">
-                       {(["auto", "1:1", "16:9", "4:5"] as AspectRatio[]).map(a => (
-                         <button key={a} onClick={() => setAspectRatio(a)} className={`flex-1 rounded-xl py-2 text-[10px] border ${aspectRatio === a ? 'border-cyan-400 bg-cyan-400/5' : 'border-white/5'}`}>{a}</button>
-                       ))}
-                    </div>
-                    <label className="flex items-center justify-between px-1 text-[11px] text-slate-400">
-                      macOS Buttons
-                      <input type="checkbox" checked={showWindowButtons} onChange={e => setShowWindowButtons(e.target.checked)} className="accent-fuchsia-500" />
-                    </label>
-                 </div>
+              {/* Aesthetic */}
+              <section className="space-y-3">
+                <label className={`text-[10px] uppercase tracking-widest font-bold block ${isDarkTheme ? "text-slate-400" : "text-slate-500"}`}>Aesthetic</label>
+
+                {/* Card title */}
+                <input
+                  className={`w-full rounded-xl border px-3 py-2 text-xs outline-none transition focus:border-fuchsia-400 ${
+                    isDarkTheme ? "border-white/10 bg-slate-950/50 text-white placeholder:text-slate-600" : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
+                  }`}
+                  placeholder="Card Title..."
+                  value={cardTitle}
+                  onChange={(e) => setCardTitle(e.target.value)}
+                />
+
+                {/* Theme buttons — all 5 themes in 2-col grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {(["dark", "light", "neon", "ocean", "sunset"] as Theme[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setTheme(t)}
+                      className={`rounded-xl py-2 text-xs capitalize border transition ${
+                        theme === t
+                          ? isDarkTheme ? "border-fuchsia-400 bg-fuchsia-400/10 text-white" : "border-fuchsia-400 bg-fuchsia-50 text-fuchsia-700"
+                          : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-400 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Aspect ratio — 2-col on mobile, 4-col on sm+ */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(["auto", "1:1", "16:9", "4:5"] as AspectRatio[]).map(a => (
+                    <button
+                      key={a}
+                      onClick={() => setAspectRatio(a)}
+                      className={`rounded-xl py-2 text-[10px] border transition ${
+                        aspectRatio === a
+                          ? isDarkTheme ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-cyan-400 bg-cyan-50 text-slate-900"
+                          : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-400 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Toggles */}
+                <label className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-xs cursor-pointer ${
+                  isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
+                }`}>
+                  macOS Buttons
+                  <input type="checkbox" checked={showWindowButtons} onChange={e => setShowWindowButtons(e.target.checked)} className="accent-fuchsia-500 ml-2 h-3.5 w-3.5" />
+                </label>
+                <label className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-xs cursor-pointer ${
+                  isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
+                }`}>
+                  Watermark
+                  <input type="checkbox" checked={watermark} onChange={e => setWatermark(e.target.checked)} className="accent-fuchsia-500 ml-2 h-3.5 w-3.5" />
+                </label>
+                <label className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-xs cursor-pointer ${
+                  isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
+                }`}>
+                  <span className="flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-cyan-400" /> HD Export (3×PNG)</span>
+                  <input type="checkbox" checked={hdExport} onChange={e => setHdExport(e.target.checked)} className="accent-cyan-400 ml-2 h-3.5 w-3.5" />
+                </label>
               </section>
             </div>
           </aside>
