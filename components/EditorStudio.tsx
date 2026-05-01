@@ -366,7 +366,9 @@ export function EditorStudio() {
   const [isExporting, setIsExporting] = useState(false);
   const [isSupporting, setIsSupporting] = useState(false);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
 
   // Advanced Feature States
   const [opacity, setOpacity] = useState(0.8);
@@ -402,14 +404,144 @@ export function EditorStudio() {
     }
   };
 
+  useEffect(() => {
+    const syncSidebar = () => {
+      setSidebarOpen(window.innerWidth >= 1024);
+    };
+
+    syncSidebar();
+    window.addEventListener('resize', syncSidebar);
+    return () => window.removeEventListener('resize', syncSidebar);
+  }, []);
+
   // --- Demo snippets per language
   const demoSnippets: Record<string, string> = {
-    javascript: `// JavaScript demo\nfunction greet(name) {\n  return ` + "`Hello, ${name}!`" + `\n}\nconsole.log(greet('ContentIo'));`,
-    typescript: `// TypeScript demo\nfunction greet(name: string): string {\n  return ` + "`Hello, ${name}!`" + `\n}\nconsole.log(greet('ContentIo'));`,
-    python: `# Python demo\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet('ContentIo'))`,
-    bash: `# Bash demo\necho "Hello from ContentIo"\n`,
-    java: `// Java demo\npublic class Hello {\n  public static void main(String[] args) {\n    System.out.println("Hello, ContentIo");\n  }\n}\n`,
-    cpp: `// C++ demo\n#include <iostream>\nint main() {\n  std::cout << "Hello, ContentIo" << std::endl;\n  return 0;\n}\n`,
+    javascript: `// Fetch user data and display it
+async function fetchUser(id) {
+  try {
+    const res = await fetch(
+      \`https://api.example.com/users/\${id}\`
+    );
+    if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+    const user = await res.json();
+    console.log(\`Name: \${user.name}, Email: \${user.email}\`);
+    return user;
+  } catch (err) {
+    console.error('Failed to fetch user:', err.message);
+  }
+}
+
+fetchUser(42);`,
+    typescript: `// Typed API response handler
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+}
+
+async function fetchUser(id: number): Promise<User | null> {
+  try {
+    const res = await fetch(
+      \`https://api.example.com/users/\${id}\`
+    );
+    if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+    return (await res.json()) as User;
+  } catch (err) {
+    console.error('Error:', (err as Error).message);
+    return null;
+  }
+}
+
+fetchUser(42).then((u) => u && console.log(u.name));`,
+    python: `# Fetch and parse JSON from an API
+import urllib.request
+import json
+
+def fetch_user(user_id: int) -> dict:
+    url = f"https://api.example.com/users/{user_id}"
+    with urllib.request.urlopen(url) as response:
+        data = json.loads(response.read().decode())
+    return data
+
+def main():
+    user = fetch_user(42)
+    print(f"Name: {user['name']}, Email: {user['email']}")
+
+if __name__ == "__main__":
+    main()`,
+    bash: `#!/bin/bash
+# Deploy script — build, test, push
+
+set -e
+
+APP_NAME="contentio"
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+echo "🚀 Deploying $APP_NAME from branch: $BRANCH"
+
+npm ci
+npm run lint
+npm run build
+
+echo "✅ Build passed. Pushing to Vercel..."
+vercel --prod --yes
+
+echo "🎉 Deploy complete!"`,
+    java: `import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class ApiClient {
+
+    private static final HttpClient client = HttpClient.newHttpClient();
+
+    public static String fetchUser(int id) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://api.example.com/users/" + id))
+            .header("Accept", "application/json")
+            .GET()
+            .build();
+
+        HttpResponse<String> response =
+            client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("HTTP " + response.statusCode());
+        }
+        return response.body();
+    }
+
+    public static void main(String[] args) throws Exception {
+        String body = fetchUser(42);
+        System.out.println(body);
+    }
+}`,
+    cpp: `#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+// Find the two numbers that sum to target
+std::vector<int> twoSum(std::vector<int>& nums, int target) {
+    for (size_t i = 0; i < nums.size(); ++i) {
+        for (size_t j = i + 1; j < nums.size(); ++j) {
+            if (nums[i] + nums[j] == target) {
+                return {static_cast<int>(i), static_cast<int>(j)};
+            }
+        }
+    }
+    return {};
+}
+
+int main() {
+    std::vector<int> nums = {2, 7, 11, 15};
+    int target = 9;
+    auto result = twoSum(nums, target);
+    std::cout << "[" << result[0] << ", " << result[1] << "]" << std::endl;
+    return 0;
+}`,
   };
 
   const setDemoForLanguageIfAppropriate = (nextLang: string) => {
@@ -607,15 +739,19 @@ export function EditorStudio() {
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
-                        const f = e.target.files && e.target.files[0];
-                        if (f) {
-                          const url = URL.createObjectURL(f);
-                          setImageUrl(url);
-                          trackInteraction('image_uploaded', { size: f.size, type: f.type });
-                        }
-                        // reset so same file can be chosen again
-                        e.currentTarget.value = '';
-                      }}
+                            const f = e.target.files && e.target.files[0];
+                            if (f) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                            if (typeof reader.result === 'string') {
+                            setImageUrl(reader.result);   // base64 data URL — works everywhere including export
+                            trackInteraction('image_uploaded', { size: f.size, type: f.type });
+                            }
+                            };
+                            reader.readAsDataURL(f);
+                            }
+                            e.currentTarget.value = '';
+                            }}
                     />
                   </div>
                 ) : (
