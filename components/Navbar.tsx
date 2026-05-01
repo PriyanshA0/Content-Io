@@ -65,7 +65,7 @@ export function Navbar({ forceLightTheme = false }: NavbarProps) {
         </a>
       </div>
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
         {/* Logo */}
         <LoadingLink href="/" loadingLabel="Loading..." className="flex items-center gap-2.5 text-slate-900 dark:text-white">
           <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-violet-500 to-cyan-400 shadow-[0_8px_24px_rgba(168,85,247,0.28)] dark:shadow-[0_8px_24px_rgba(168,85,247,0.15)]">

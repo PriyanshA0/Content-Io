@@ -100,7 +100,7 @@ const Navbar = () => {
         <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-fuchsia-500/10 dark:bg-fuchsia-500/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-fuchsia-600 dark:text-fuchsia-400">New</span>
         AI-powered style suggestions just launched → <span className="underline underline-offset-2 hover:text-slate-900 dark:hover:text-white cursor-pointer">Try it free</span>
       </div>
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5">
+      <div className="mx-auto w-full flex max-w-7xl items-center justify-between px-4 py-3.5">
         <div className="flex items-center gap-2.5 text-slate-900 dark:text-white">
           <LoadingLink href="/" loadingLabel="Back..." className="inline-flex items-center gap-2 hover:opacity-80 transition">
             <ArrowLeft className="h-5 w-5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" />
@@ -378,6 +378,8 @@ export function EditorStudio() {
   const [borderWidth, setBorderWidth] = useState(1);
 
   const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const formatterRef = useRef<() => Promise<void> | null>(null);
 
   const trackInteraction = async (eventType: string, metadata?: Record<string, unknown>) => {
     try {
@@ -397,6 +399,29 @@ export function EditorStudio() {
       });
     } catch {
       // Ignore telemetry failures to keep UI responsive.
+    }
+  };
+
+  // --- Demo snippets per language
+  const demoSnippets: Record<string, string> = {
+    javascript: `// JavaScript demo\nfunction greet(name) {\n  return ` + "`Hello, ${name}!`" + `\n}\nconsole.log(greet('ContentIo'));`,
+    typescript: `// TypeScript demo\nfunction greet(name: string): string {\n  return ` + "`Hello, ${name}!`" + `\n}\nconsole.log(greet('ContentIo'));`,
+    python: `# Python demo\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet('ContentIo'))`,
+    bash: `# Bash demo\necho "Hello from ContentIo"\n`,
+    java: `// Java demo\npublic class Hello {\n  public static void main(String[] args) {\n    System.out.println("Hello, ContentIo");\n  }\n}\n`,
+    cpp: `// C++ demo\n#include <iostream>\nint main() {\n  std::cout << "Hello, ContentIo" << std::endl;\n  return 0;\n}\n`,
+  };
+
+  const setDemoForLanguageIfAppropriate = (nextLang: string) => {
+    const currentTrim = (code || '').trim();
+    const isEmpty = currentTrim.length === 0;
+    // If code is empty or equals one of the existing demos or starter code, replace with new demo
+    const knownDemoMatch = Object.values(demoSnippets).some(s => s.trim() === currentTrim);
+    if (isEmpty || knownDemoMatch || currentTrim === starterCode.trim()) {
+      const snippet = (demoSnippets as any)[nextLang] ?? '';
+      setCode(snippet);
+      // after setting code, request formatting if available
+      setTimeout(() => formatterRef.current && formatterRef.current(), 50);
     }
   };
 
@@ -500,10 +525,10 @@ export function EditorStudio() {
   };
 
   return (
-    <div className={`editor-shell min-h-screen selection:bg-fuchsia-500/20 font-sans ${isDarkTheme ? "text-slate-100" : "bg-slate-50 text-slate-900"}`}>
+    <div className={`editor-shell min-h-screen selection:bg-fuchsia-500/20 font-sans overflow-x-hidden ${isDarkTheme ? "text-slate-100" : "bg-slate-50 text-slate-900"}`}>
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
+      <main className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8 overflow-x-hidden">
         <div className={`editor-surface mb-6 flex flex-col gap-4 rounded-[24px] p-4 shadow-sm backdrop-blur-xl sm:mb-8 sm:rounded-[28px] sm:p-6 lg:flex-row lg:items-center lg:justify-between ${surfaceClass}`}>
           <div>
             <h1 className={`editor-heading font-display mt-2 text-2xl font-bold tracking-tight sm:text-3xl ${headingClass}`}>Studio Design Editor</h1>
@@ -567,17 +592,40 @@ export function EditorStudio() {
               </div>
               <div className="mt-3 sm:mt-4">
                 {mode === "image" ? (
-                  <div className={`rounded-lg sm:rounded-xl border border-dashed p-6 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition ${isDarkTheme ? "border-slate-700 bg-slate-900/60 hover:border-cyan-400" : "border-slate-200 bg-slate-50 hover:border-cyan-400"}`}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
+                    className={`rounded-lg sm:rounded-xl border border-dashed p-6 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition ${isDarkTheme ? "border-slate-700 bg-slate-900/60 hover:border-cyan-400" : "border-slate-200 bg-slate-50 hover:border-cyan-400"}`}
+                  >
                     <CloudUpload className="h-6 sm:h-8 w-6 sm:w-8 text-slate-400 mb-1 sm:mb-2" />
                     <span className={`text-[10px] sm:text-xs font-medium ${isDarkTheme ? "text-slate-300" : "text-slate-500"}`}>Click to upload image</span>
+                    <input
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (f) {
+                          const url = URL.createObjectURL(f);
+                          setImageUrl(url);
+                          trackInteraction('image_uploaded', { size: f.size, type: f.type });
+                        }
+                        // reset so same file can be chosen again
+                        e.currentTarget.value = '';
+                      }}
+                    />
                   </div>
                 ) : (
                   <CodeEditor
-                    code={code}
-                    onCodeChange={setCode}
-                    language={language}
-                    onLanguageChange={setLanguage}
-                  />
+                      code={code}
+                      onCodeChange={setCode}
+                      language={language}
+                      onLanguageChange={(next) => { setLanguage(next); setDemoForLanguageIfAppropriate(next); }}
+                      onRegisterFormatter={(format) => { formatterRef.current = format; }}
+                    />
                 )}
               </div>
             </div>

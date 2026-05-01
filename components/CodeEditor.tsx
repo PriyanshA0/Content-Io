@@ -13,11 +13,14 @@ interface CodeEditorProps {
   onCodeChange: (code: string) => void;
   language: "javascript" | "typescript" | "python" | "bash" | "java" | "cpp";
   onLanguageChange: (language: "javascript" | "typescript" | "python" | "bash" | "java" | "cpp") => void;
+  /** Optional callback that receives a formatter function */
+  onRegisterFormatter?: (format: () => Promise<void>) => void;
 }
 
 const languages = ["javascript", "typescript", "python", "bash", "java", "cpp"] as const;
 
-export function CodeEditor({ code, onCodeChange, language, onLanguageChange }: CodeEditorProps) {
+export function CodeEditor({ code, onCodeChange, language, onLanguageChange, onRegisterFormatter }: CodeEditorProps) {
+  const [editorApi, setEditorApi] = useState<any>(null);
   const [editorTheme, setEditorTheme] = useState<"vs" | "vs-dark">("vs");
 
   useEffect(() => {
@@ -60,6 +63,29 @@ export function CodeEditor({ code, onCodeChange, language, onLanguageChange }: C
           language={language}
           value={code}
           onChange={(value) => onCodeChange(value ?? "")}
+          onMount={(editor, monaco) => {
+            setEditorApi({ editor, monaco });
+            // register formatter callback if requested
+            try {
+              const formatFn = async () => {
+                try {
+                  // run Monaco's format document action
+                  // some languages may not have a formatter available; guard against errors
+                  const action = editor.getAction && editor.getAction('editor.action.formatDocument');
+                  if (action && action.run) {
+                    await action.run();
+                  }
+                } catch (e) {
+                  // noop
+                }
+              };
+              if (typeof (onRegisterFormatter as any) === 'function') {
+                (onRegisterFormatter as any)(formatFn);
+              }
+            } catch (err) {
+              // ignore
+            }
+          }}
           theme={editorTheme}
           options={{
             minimap: { enabled: false },

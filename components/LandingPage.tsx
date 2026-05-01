@@ -131,12 +131,12 @@ const faqs = [
 
 export function LandingPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
-      {/* Background mesh */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 left-1/4 h-[600px] w-[600px] rounded-full bg-violet-400/15 dark:bg-violet-400/10 blur-[120px]" />
-        <div className="absolute -top-20 right-1/4 h-[500px] w-[500px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/5 blur-[100px]" />
-        <div className="absolute bottom-0 left-1/2 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-fuchsia-400/10 dark:bg-fuchsia-400/5 blur-[100px]" />
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+      {/* Background mesh (clipped to avoid horizontal overflow on small screens) */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 left-1/4 h-[600px] w-[600px] rounded-full bg-violet-400/15 dark:bg-violet-400/10 blur-[120px] md:h-[600px] md:w-[600px] sm:h-[360px] sm:w-[360px]" />
+        <div className="absolute -top-20 right-1/4 h-[500px] w-[500px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/5 blur-[100px] md:h-[500px] md:w-[500px] sm:h-[300px] sm:w-[300px]" />
+        <div className="absolute bottom-0 left-1/2 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-fuchsia-400/10 dark:bg-fuchsia-400/5 blur-[100px] md:h-[400px] md:w-[400px] sm:h-[260px] sm:w-[260px]" />
         <div className="landing-vignette absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,#f8fafc_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_60%,#0f172a_100%)]" />
         {/* Grid */}
         <div
@@ -151,7 +151,7 @@ export function LandingPage() {
       <Navbar forceLightTheme />
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-24">
+      <section className="relative mx-auto w-full grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-24">
         <div>
           {/* Badge */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 shadow-sm dark:shadow-slate-900/50 backdrop-blur-sm">

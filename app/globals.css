@@ -37,6 +37,11 @@ body {
   color-scheme: light;
 }
 
+/* Prevent horizontal overflow on small devices caused by large decorative elements */
+html, body {
+  overflow-x: hidden;
+}
+
 html[data-theme="dark"] body {
   background:
     radial-gradient(circle at top left, rgba(168, 85, 247, 0.16), transparent 24%),
