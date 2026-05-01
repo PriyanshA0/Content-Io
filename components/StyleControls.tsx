@@ -1,162 +1,201 @@
 "use client";
 
-import { Shield, Sparkles } from "lucide-react";
+import { Shield, Sparkles, Box, Layout as LayoutIcon, Type, Eye } from "lucide-react";
+import { Background, Theme, Layout, AspectRatio } from "./EditorStudio";
 
 interface StyleControlsProps {
-  background: string;
-  onBackgroundChange: (value: string) => void;
+  background: Background;
+  onBackgroundChange: (v: string) => void;
   padding: number;
-  onPaddingChange: (value: number) => void;
+  onPaddingChange: (v: number) => void;
   radius: number;
-  onRadiusChange: (value: number) => void;
+  onRadiusChange: (v: number) => void;
   shadow: boolean;
-  onShadowChange: (value: boolean) => void;
-  theme: "dark" | "light" | "neon";
-  onThemeChange: (value: "dark" | "light" | "neon") => void;
+  onShadowChange: (v: boolean) => void;
+  theme: Theme;
+  onThemeChange: (v: Theme) => void;
   fontSize: number;
-  onFontSizeChange: (value: number) => void;
+  onFontSizeChange: (v: number) => void;
   lineNumbers: boolean;
-  onLineNumbersChange: (value: boolean) => void;
-  layout: "centered" | "framed" | "card";
-  onLayoutChange: (value: "centered" | "framed" | "card") => void;
+  onLineNumbersChange: (v: boolean) => void;
+  layout: Layout;
+  onLayoutChange: (v: Layout) => void;
   watermark: boolean;
-  onWatermarkChange: (value: boolean) => void;
+  onWatermarkChange: (v: boolean) => void;
   hdExport: boolean;
-  onHdExportChange: (value: boolean) => void;
+  onHdExportChange: (v: boolean) => void;
+  // New props
+  opacity: number;
+  onOpacityChange: (v: number) => void;
+  tiltX: number;
+  onTiltXChange: (v: number) => void;
+  tiltY: number;
+  onTiltYChange: (v: number) => void;
+  showWindowButtons: boolean;
+  onShowWindowButtonsChange: (v: boolean) => void;
+  cardTitle: string;
+  onCardTitleChange: (v: string) => void;
+  aspectRatio: AspectRatio;
+  onAspectRatioChange: (v: AspectRatio) => void;
+  borderWidth: number;
+  onBorderWidthChange: (v: number) => void;
 }
 
-const backgroundOptions = ["aurora", "sunset", "graphite", "glass"] as const;
-const layoutOptions = ["centered", "framed", "card"] as const;
-const themeOptions = [
+const backgrounds: Background[] = ["aurora", "sunset", "midnight", "emerald", "graphite", "glass"];
+const layouts: Layout[] = ["centered", "framed", "card"];
+const aspects: AspectRatio[] = ["auto", "1:1", "16:9", "4:5"];
+const themes: { value: Theme; label: string }[] = [
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
   { value: "neon", label: "Neon" },
-] as const;
+  { value: "ocean", label: "Ocean" },
+  { value: "sunset", label: "Sunset" },
+];
 
 export function StyleControls({
-  background,
-  onBackgroundChange,
-  padding,
-  onPaddingChange,
-  radius,
-  onRadiusChange,
-  shadow,
-  onShadowChange,
-  theme,
-  onThemeChange,
-  fontSize,
-  onFontSizeChange,
-  lineNumbers,
-  onLineNumbersChange,
-  layout,
-  onLayoutChange,
-  watermark,
-  onWatermarkChange,
-  hdExport,
-  onHdExportChange,
+  background, onBackgroundChange, padding, onPaddingChange, radius, onRadiusChange, shadow, onShadowChange,
+  theme, onThemeChange, fontSize, onFontSizeChange, lineNumbers, onLineNumbersChange, layout, onLayoutChange,
+  watermark, onWatermarkChange, hdExport, onHdExportChange, opacity, onOpacityChange, tiltX, onTiltXChange,
+  tiltY, onTiltYChange, showWindowButtons, onShowWindowButtonsChange, cardTitle, onCardTitleChange,
+  aspectRatio, onAspectRatioChange, borderWidth, onBorderWidthChange
 }: StyleControlsProps) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
+    <div className="max-h-[70vh] overflow-y-auto rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl custom-scrollbar">
       <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm font-semibold text-white">Customize</div>
-          <div className="text-xs text-slate-400">Tune the composition before you export.</div>
-        </div>
+        <div className="text-sm font-semibold text-white">Composition Controls</div>
         <Sparkles className="h-4 w-4 text-fuchsia-300" />
       </div>
 
-      <div className="mt-5 space-y-5">
+      <div className="mt-5 space-y-6">
+        {/* Background */}
         <section>
-          <div className="mb-3 text-xs uppercase tracking-[0.22em] text-slate-400">Background</div>
-          <div className="grid grid-cols-2 gap-2">
-            {backgroundOptions.map((option) => (
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+            <LayoutIcon className="h-3 w-3" /> Background Canvas
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {backgrounds.map((b) => (
               <button
-                key={option}
+                key={b}
                 type="button"
-                onClick={() => onBackgroundChange(option)}
-                className={`rounded-2xl border px-3 py-3 text-left text-sm capitalize transition ${background === option ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
+                onClick={() => onBackgroundChange(b)}
+                className={`rounded-xl border px-2 py-2 text-center text-[10px] capitalize transition ${background === b ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
               >
-                {option}
+                {b}
               </button>
             ))}
           </div>
         </section>
 
+        {/* Framing & 3D */}
         <section>
-          <div className="mb-3 text-xs uppercase tracking-[0.22em] text-slate-400">Style</div>
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+            <Box className="h-3 w-3" /> Box Styling & 3D
+          </div>
           <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-            <label className="block text-sm text-slate-300">
+            <label className="block text-xs text-slate-300">
               Padding {padding}px
-              <input className="mt-2 w-full" type="range" min="20" max="96" value={padding} onChange={(event) => onPaddingChange(Number(event.target.value))} />
+              <input className="mt-2 w-full accent-fuchsia-500" type="range" min="0" max="120" value={padding} onChange={(e) => onPaddingChange(Number(e.target.value))} />
             </label>
-            <label className="block text-sm text-slate-300">
-              Border radius {radius}px
-              <input className="mt-2 w-full" type="range" min="16" max="48" value={radius} onChange={(event) => onRadiusChange(Number(event.target.value))} />
+            <label className="block text-xs text-slate-300">
+              Glass Opacity {Math.round(opacity * 100)}%
+              <input className="mt-2 w-full accent-fuchsia-500" type="range" min="0" max="1" step="0.05" value={opacity} onChange={(e) => onOpacityChange(Number(e.target.value))} />
             </label>
-            <label className="block text-sm text-slate-300">
-              Font size {fontSize}px
-              <input className="mt-2 w-full" type="range" min="12" max="22" value={fontSize} onChange={(event) => onFontSizeChange(Number(event.target.value))} />
-            </label>
-            <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
-              Shadow
-              <input type="checkbox" checked={shadow} onChange={(event) => onShadowChange(event.target.checked)} />
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block text-xs text-slate-300">
+                Tilt X: {tiltX}°
+                <input className="mt-2 w-full accent-cyan-500" type="range" min="-25" max="25" value={tiltX} onChange={(e) => onTiltXChange(Number(e.target.value))} />
+              </label>
+              <label className="block text-xs text-slate-300">
+                Tilt Y: {tiltY}°
+                <input className="mt-2 w-full accent-cyan-500" type="range" min="-25" max="25" value={tiltY} onChange={(e) => onTiltYChange(Number(e.target.value))} />
+              </label>
+            </div>
+            <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
+              Drop Shadow
+              <input type="checkbox" checked={shadow} onChange={(e) => onShadowChange(e.target.checked)} />
             </label>
           </div>
         </section>
 
+        {/* Editor Aesthetic */}
         <section>
-          <div className="mb-3 text-xs uppercase tracking-[0.22em] text-slate-400">Code Styling</div>
-          <div className="grid grid-cols-3 gap-2">
-            {themeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onThemeChange(option.value)}
-                className={`rounded-2xl border px-3 py-3 text-sm transition ${theme === option.value ? "border-fuchsia-300 bg-fuchsia-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+            <Type className="h-3 w-3" /> Frame Aesthetics
           </div>
-          <label className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
-            Line numbers
-            <input type="checkbox" checked={lineNumbers} onChange={(event) => onLineNumbersChange(event.target.checked)} />
-          </label>
+          <div className="space-y-3">
+             <div className="grid grid-cols-2 gap-2">
+               {themes.map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => onThemeChange(t.value)}
+                    className={`rounded-xl border px-3 py-2 text-xs transition ${theme === t.value ? "border-fuchsia-300 bg-fuchsia-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
+                  >
+                    {t.label}
+                  </button>
+               ))}
+             </div>
+             <input 
+               className="w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 py-2 text-xs text-white placeholder:text-slate-600 focus:border-fuchsia-400 outline-none"
+               placeholder="Window title..."
+               value={cardTitle}
+               onChange={(e) => onCardTitleChange(e.target.value)}
+             />
+             <div className="flex gap-2">
+                <label className="flex flex-1 items-center justify-between rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-200">
+                  macOS Buttons
+                  <input type="checkbox" checked={showWindowButtons} onChange={(e) => onShowWindowButtonsChange(e.target.checked)} />
+                </label>
+                <label className="flex flex-1 items-center justify-between rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-200">
+                  Line #
+                  <input type="checkbox" checked={lineNumbers} onChange={(e) => onLineNumbersChange(e.target.checked)} />
+                </label>
+             </div>
+          </div>
         </section>
 
+        {/* Layout & Aspect */}
         <section>
-          <div className="mb-3 text-xs uppercase tracking-[0.22em] text-slate-400">Layout</div>
-          <div className="grid grid-cols-3 gap-2">
-            {layoutOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onLayoutChange(option)}
-                className={`rounded-2xl border px-3 py-3 text-sm capitalize transition ${layout === option ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
-              >
-                {option}
-              </button>
-            ))}
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+            <Eye className="h-3 w-3" /> Output Sizing
+          </div>
+          <div className="space-y-3">
+             <div className="flex gap-2">
+               {aspects.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => onAspectRatioChange(a)}
+                    className={`flex-1 rounded-xl border px-2 py-2 text-[10px] transition ${aspectRatio === a ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5"}`}
+                  >
+                    {a}
+                  </button>
+               ))}
+             </div>
           </div>
         </section>
 
+        {/* Premium Export */}
         <section className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Shield className="h-4 w-4 text-cyan-300" />
-            Premium options
+          <div className="flex items-center gap-2 text-xs font-semibold text-white">
+            <Shield className="h-4 w-4 text-cyan-300" /> Premium Export
           </div>
-          <div className="mt-3 space-y-3 text-sm text-slate-300">
-            <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-              Remove watermark
-              <input type="checkbox" checked={watermark} onChange={(event) => onWatermarkChange(event.target.checked)} />
+          <div className="mt-3 space-y-2 text-xs text-slate-300">
+            <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              Watermark
+              <input type="checkbox" checked={watermark} onChange={(e) => onWatermarkChange(e.target.checked)} />
             </label>
-            <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-              HD export
-              <input type="checkbox" checked={hdExport} onChange={(event) => onHdExportChange(event.target.checked)} />
+            <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              3x HD (PNG)
+              <input type="checkbox" checked={hdExport} onChange={(e) => onHdExportChange(e.target.checked)} />
             </label>
           </div>
         </section>
       </div>
+      
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+      `}</style>
     </div>
   );
 }

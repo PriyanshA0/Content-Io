@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -10,13 +11,29 @@ const Editor = dynamic(() => import("@monaco-editor/react"), {
 interface CodeEditorProps {
   code: string;
   onCodeChange: (code: string) => void;
-  language: "javascript" | "typescript" | "python" | "bash";
-  onLanguageChange: (language: "javascript" | "typescript" | "python" | "bash") => void;
+  language: "javascript" | "typescript" | "python" | "bash" | "java" | "cpp";
+  onLanguageChange: (language: "javascript" | "typescript" | "python" | "bash" | "java" | "cpp") => void;
 }
 
-const languages = ["javascript", "typescript", "python", "bash"] as const;
+const languages = ["javascript", "typescript", "python", "bash", "java", "cpp"] as const;
 
 export function CodeEditor({ code, onCodeChange, language, onLanguageChange }: CodeEditorProps) {
+  const [editorTheme, setEditorTheme] = useState<"vs" | "vs-dark">("vs");
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const nextTheme = document.documentElement.dataset.theme === "dark" ? "vs-dark" : "vs";
+      setEditorTheme(nextTheme);
+    };
+
+    syncTheme();
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/60">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
@@ -43,7 +60,7 @@ export function CodeEditor({ code, onCodeChange, language, onLanguageChange }: C
           language={language}
           value={code}
           onChange={(value) => onCodeChange(value ?? "")}
-          theme="vs-dark"
+          theme={editorTheme}
           options={{
             minimap: { enabled: false },
             fontSize: 15,

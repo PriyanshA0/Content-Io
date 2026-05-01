@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+const TARGET_DB_NAME = "ContentIo";
+
 function normalizeMongoUri(raw?: string) {
   if (!raw) return undefined;
 
@@ -16,7 +18,18 @@ function normalizeMongoUri(raw?: string) {
   return value;
 }
 
-const MONGODB_URI = normalizeMongoUri(process.env.MONGODB_URI) ?? normalizeMongoUri(process.env.MONGODB_URL);
+function ensureDatabaseName(uri: string, dbName: string) {
+  try {
+    const parsed = new URL(uri);
+    parsed.pathname = `/${dbName}`;
+    return parsed.toString();
+  } catch {
+    return uri.replace(/\/[^/?]*(\?.*)?$/, `/${dbName}$1`);
+  }
+}
+
+const normalizedMongoUri = normalizeMongoUri(process.env.MONGODB_URI) ?? normalizeMongoUri(process.env.MONGODB_URL);
+const MONGODB_URI = normalizedMongoUri ? ensureDatabaseName(normalizedMongoUri, TARGET_DB_NAME) : undefined;
 
 function isUsableMongoUri(uri?: string) {
   if (!uri) return false;
