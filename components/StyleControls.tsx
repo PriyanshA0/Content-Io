@@ -1,7 +1,9 @@
 "use client";
 
 import { Shield, Sparkles, Box, Layout as LayoutIcon, Type, Eye } from "lucide-react";
-import { Background, Theme, Layout, AspectRatio } from "./EditorStudio";
+import { Background, Theme, AspectRatio } from "./EditorStudio";
+
+type Layout = "centered" | "framed" | "card";
 
 interface StyleControlsProps {
   background: Background;

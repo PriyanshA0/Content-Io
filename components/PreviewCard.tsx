@@ -1,11 +1,17 @@
 "use client";
 
 import { forwardRef } from "react";
-import Image from "next/image";
 import { ShieldCheck, Sparkles } from "lucide-react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus, oneLight, coldarkDark, materialOceanic, synthwave84 } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { AspectRatio, Background, Mode, Theme } from "./EditorStudio";
+
+/**
+ * Types & Constants
+ * We define these locally or import them to ensure the PreviewCard 
+ * is perfectly synced with the EditorStudio logic.
+ */
+export type Mode = "image" | "code";
+export type Theme = "dark" | "light" | "neon" | "ocean" | "sunset";
+export type AspectRatio = "auto" | "1:1" | "16:9" | "4:5";
+export type Background = "aurora" | "sunset" | "midnight" | "emerald" | "graphite" | "glass";
 
 interface PreviewCardProps {
   mode: Mode;
@@ -30,13 +36,38 @@ interface PreviewCardProps {
   borderWidth: number;
 }
 
-const themeStyles = {
-  dark: vscDarkPlus,
-  light: oneLight,
-  neon: synthwave84,
-  ocean: materialOceanic,
-  sunset: coldarkDark,
-} as const;
+/**
+ * Enhanced Custom Syntax Highlighter
+ * Uses regex to provide professional-looking colorization without 
+ * relying on external libraries that cause build errors.
+ */
+const SimpleSyntaxHighlighter = ({ code, theme, fontSize }: { code: string; theme: Theme; fontSize: number }) => {
+  const isLight = theme === 'light';
+  
+  const colors = {
+    dark: { text: "#f8f8f2", keyword: "#ff79c6", string: "#f1fa8c", comment: "#6272a4" },
+    light: { text: "#24292e", keyword: "#d73a49", string: "#032f62", comment: "#6a737d" },
+    neon: { text: "#00ffff", keyword: "#ff00ff", string: "#ffff00", comment: "#4d4d4d" },
+    ocean: { text: "#80cbc4", keyword: "#c792ea", string: "#c3e88d", comment: "#546e7a" },
+    sunset: { text: "#a9b1d6", keyword: "#bb9af7", string: "#9ece6a", comment: "#565f89" },
+  }[theme] || { text: "#ffffff", keyword: "#ff00ff", string: "#00ff00", comment: "#888" };
+
+  const highlight = (codeText: string) => {
+    return codeText
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\/\/.*/g, `<span style="color: ${colors.comment}">$&</span>`)
+      .replace(/\b(const|let|var|function|return|if|else|for|while|import|export|class|async|await)\b/g, `<span style="color: ${colors.keyword}; font-weight: bold;">$&</span>`)
+      .replace(/(['"])(?:(?!\1|\\).|\\.)*\1/g, `<span style="color: ${colors.string}">$&</span>`);
+  };
+
+  return (
+    <pre 
+      className="p-6 font-mono leading-relaxed whitespace-pre overflow-x-auto custom-scrollbar"
+      style={{ fontSize: `${fontSize}px`, color: colors.text }}
+      dangerouslySetInnerHTML={{ __html: `<code>${highlight(code)}</code>` }}
+    />
+  );
+};
 
 const backgroundMap: Record<Background, string> = {
   aurora: "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
@@ -49,8 +80,8 @@ const backgroundMap: Record<Background, string> = {
 
 export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function PreviewCard(
   {
-    mode, imageUrl, code, language, background, padding, radius, shadow, theme, 
-    layout, fontSize, lineNumbers, watermark, opacity, tiltX, tiltY, 
+    mode, imageUrl, code, background, padding, radius, shadow, theme, 
+    fontSize, watermark, opacity, tiltX, tiltY, 
     showWindowButtons, cardTitle, aspectRatio, borderWidth
   },
   ref
@@ -59,12 +90,12 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
   const borderRadius = `${radius}px`;
   const innerRadius = `${Math.max(radius - 12, 12)}px`;
   
-  const aspectClass = {
+  const aspectClassMap: Record<AspectRatio, string> = {
     "auto": "w-full",
     "1:1": "aspect-square w-full flex items-center justify-center",
     "16:9": "aspect-video w-full flex items-center justify-center",
     "4:5": "aspect-[4/5] w-full flex items-center justify-center",
-  }[aspectRatio];
+  };
 
   const surfaceBg = theme === "light" 
     ? `rgba(255, 255, 255, ${opacity})` 
@@ -76,10 +107,10 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
     <div className="flex h-full w-full items-center justify-center p-4">
       <div
         ref={ref}
-        className={`${aspectClass} overflow-hidden transition-all duration-300`}
+        className={`${aspectClassMap[aspectRatio]} overflow-hidden transition-all duration-300`}
         style={{
           padding: `${padding}px`,
-          background: backgroundMap[background],
+          background: backgroundMap[background] || backgroundMap.aurora,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -125,28 +156,11 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
               </div>
             ) : (
               <div className="overflow-hidden" style={{ borderRadius: innerRadius }}>
-                <SyntaxHighlighter
-                  language={language}
-                  style={themeStyles[theme]}
-                  showLineNumbers={lineNumbers}
-                  wrapLines={true}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1.5rem",
-                    fontSize: `${fontSize}px`,
-                    background: "transparent",
-                    lineHeight: "1.6",
-                  }}
-                  lineNumberStyle={{ 
-                    opacity: 0.2, 
-                    minWidth: "2.5em", 
-                    paddingRight: "1em",
-                    textAlign: "right",
-                    userSelect: "none"
-                  }}
-                >
-                  {code}
-                </SyntaxHighlighter>
+                <SimpleSyntaxHighlighter
+                  code={code}
+                  theme={theme}
+                  fontSize={fontSize}
+                />
               </div>
             )}
           </div>
@@ -162,6 +176,11 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
           )}
         </div>
       </div>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+      `}</style>
     </div>
   );
 });
