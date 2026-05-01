@@ -1,4 +1,5 @@
 git # ContentIo
+#HELLO CONTENTI0
 
 ContentIo is a Next.js app for turning screenshots and code into polished, social-ready visuals. The current build includes a branded landing page, a live editor workspace, a MongoDB-backed design API, and a light/dark theme system with the custom favicon used across the UI.
 
