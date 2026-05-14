@@ -16,7 +16,6 @@ import {
   xonokai,
   atomDark,
   materialDark,
-  gruvboxDark,
 } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { CodeTypography, SyntaxThemeName } from '@/app/types/styling';
 
@@ -40,7 +39,7 @@ const THEME_STYLE_MAP: Record<SyntaxThemeName, any> = {
   monokai: xonokai,
   oneDarkPro: atomDark,
   ayuDark: atomDark,
-  gruvboxDark: gruvboxDark,
+  gruvboxDark: dracula,
   catppuccinMocha: atomDark,
   synthwave84: synthwave84,
   cobalt2: atomDark,
