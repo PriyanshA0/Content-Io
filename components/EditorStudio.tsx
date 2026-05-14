@@ -30,33 +30,14 @@ import {
 import { CodeEditor } from './CodeEditor';
 import { LoadingLink } from './LoadingLink';
 import favicon from '@/app/assets/Favicon.png';
+import { CodeStyleConfig, EditorLanguage, EditorMode, BackgroundPreset } from '@/app/types/styling';
+import { DEFAULT_CODE_STYLE_CONFIG, BACKGROUNDS } from '@/lib/stylePresets';
+import { WindowFrameRenderer } from './WindowFrameRenderer';
+import { CodeHighlighter } from './CodeHighlighter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-const backgroundMap = {
-  aurora:   "linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #22d3ee 100%)",
-  sunset:   "linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%)",
-  midnight: "linear-gradient(180deg, #0f172a 0%, #020617 100%)",
-  emerald:  "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)",
-  graphite: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-  glass:    "rgba(255, 255, 255, 0.05)",
-};
-
-export type Background  = keyof typeof backgroundMap;
-export type Theme       = "dark" | "light" | "neon" | "ocean" | "sunset";
-export type AspectRatio = "auto" | "1:1" | "16:9" | "4:5";
-export type Mode        = "image" | "code";
-type EditorLanguage     = "javascript" | "typescript" | "python" | "bash" | "java" | "cpp";
 // Mobile panel tab
 type MobileTab = "input" | "style" | "preview";
-
-const themeStyles = {
-  dark:   vscDarkPlus,
-  light:  oneLight,
-  neon:   synthwave84,
-  ocean:  materialOceanic,
-  sunset: coldarkDark,
-} as const;
 
 const starterCode = `const product = "ContentIo";
 
@@ -68,8 +49,6 @@ function launch() {
 }
 
 console.log(launch());`;
-
-// ─── SliderRow ────────────────────────────────────────────────────────────────
 
 interface SliderRowProps {
   label: string;
@@ -104,101 +83,161 @@ const SliderRow = ({ label, valueLabel, value, min, max, step, onChange, tone = 
 // ─── PreviewCard ──────────────────────────────────────────────────────────────
 
 interface PreviewCardProps {
-  mode: Mode; imageUrl: string | null; code: string; background: Background;
-  padding: number; radius: number; shadow: boolean; theme: Theme; fontSize: number;
-  language: EditorLanguage; watermark: boolean; opacity: number; tiltX: number;
-  tiltY: number; showWindowButtons: boolean; cardTitle: string;
-  aspectRatio: AspectRatio; borderWidth: number;
+  mode: EditorMode;
+  imageUrl: string | null;
+  code: string;
+  language: EditorLanguage;
+  codeStyleConfig: CodeStyleConfig;
+  screenshotBorder?: boolean;
+  screenshotShadow?: boolean;
+  screenshotRadius?: number;
+  screenshotPadding?: number;
+  screenshotBgStyle?: "gradient" | "solid" | "blur" | "none";
+  screenshotBgColor?: string;
+  screenshotShadowStrength?: "light" | "medium" | "heavy";
+  screenshotBorderColor?: string;
+  screenshotBorderWidth?: number;
+  screenshotFilter?: {
+    brightness: number;
+    contrast: number;
+    saturation: number;
+  };
 }
 
 const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
-  ({ mode, imageUrl, code, background, padding, radius, shadow, theme,
-     fontSize, language, watermark, opacity, tiltX, tiltY,
-     showWindowButtons, cardTitle, aspectRatio, borderWidth }, ref) => {
+  ({ 
+    mode, imageUrl, code, language, codeStyleConfig, 
+    screenshotBorder = true, 
+    screenshotShadow = true, 
+    screenshotRadius = 12,
+    screenshotPadding = 20,
+    screenshotBgStyle = "gradient",
+    screenshotBgColor = "#1a1f2e",
+    screenshotShadowStrength = "medium",
+    screenshotBorderColor = "rgba(255,255,255,0.1)",
+    screenshotBorderWidth = 2,
+    screenshotFilter = { brightness: 1, contrast: 1, saturation: 1 }
+  }, ref) => {
+    const bg = BACKGROUNDS[codeStyleConfig.background];
+    const borderRadius = `${codeStyleConfig.decoration.cornerRadius}px`;
+    const innerRadius = `${Math.max(codeStyleConfig.decoration.cornerRadius - 12, 8)}px`;
 
-    const borderRadius = `${radius}px`;
-    const innerRadius  = `${Math.max(radius - 12, 8)}px`;
-    const surfaceBg    = theme === "light"
-      ? `rgba(255,255,255,${opacity})`
-      : `rgba(2,6,23,${opacity})`;
-    const textCol = theme === "light" ? "text-slate-800" : "text-white";
+    const shadowMap = {
+      light: "0 4px 12px rgba(0,0,0,0.2)",
+      medium: "0 20px 60px rgba(0,0,0,0.6)",
+      heavy: "0 40px 100px rgba(0,0,0,0.8)"
+    };
 
+    const bgStyleMap = {
+      gradient: "linear-gradient(135deg, #1a1f2e 0%, #0f1419 100%)",
+      solid: screenshotBgColor,
+      blur: `linear-gradient(135deg, rgba(26,31,46,0.95), rgba(15,20,25,0.95))`,
+      none: "transparent"
+    };
+
+    // For image mode - render without frame
+    if (mode === "image" && imageUrl) {
+      return (
+        <div
+          ref={ref}
+          className="preview-capture inline-block min-w-full"
+          style={{
+            padding: `${screenshotPadding}px`,
+            background: bgStyleMap[screenshotBgStyle],
+          }}
+        >
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="block mx-auto h-auto w-full object-contain"
+            style={{ 
+              borderRadius: `${screenshotRadius}px`,
+              border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : "none",
+              boxShadow: screenshotShadow ? shadowMap[screenshotShadowStrength] : "none",
+              filter: `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation})`,
+              maxHeight: "600px", 
+              maxWidth: "100%"
+            }}
+          />
+        </div>
+      );
+    }
+
+    // For code mode - render with frame
     return (
-      /* Outer scroll container — swipeable on mobile */
       <div className="preview-scroll-wrapper w-full overflow-x-auto overflow-y-hidden">
         <div
           ref={ref}
           className="preview-capture inline-block min-w-full"
           style={{
-            padding: `${padding}px`,
-            background: backgroundMap[background],
+            padding: `${codeStyleConfig.layout.padding}px`,
+            background: bg.cssValue,
           }}
         >
           <div
             className="relative border border-white/10 backdrop-blur-xl"
             style={{
               borderRadius,
-              boxShadow: shadow ? "0 40px 100px rgba(0,0,0,0.5)" : "none",
-              background: surfaceBg,
-              borderWidth: `${borderWidth}px`,
-              transform: `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`,
-              ...(aspectRatio === "1:1"  ? { aspectRatio: "1/1"  } : {}),
-              ...(aspectRatio === "16:9" ? { aspectRatio: "16/9" } : {}),
-              ...(aspectRatio === "4:5"  ? { aspectRatio: "4/5"  } : {}),
+              boxShadow: codeStyleConfig.decoration.dropShadow !== "none" ? "0 40px 100px rgba(0,0,0,0.5)" : "none",
+              background: `rgba(2,6,23,0.8)`,
+              borderWidth: `${codeStyleConfig.decoration.border.width}px`,
+              transform: `perspective(1000px) rotateX(${codeStyleConfig.perspective3D.tiltX}deg) rotateY(${codeStyleConfig.perspective3D.tiltY}deg) scale(${codeStyleConfig.perspective3D.scale})`,
+              ...(codeStyleConfig.layout.aspectRatio === "1:1" ? { aspectRatio: "1/1" } : {}),
+              ...(codeStyleConfig.layout.aspectRatio === "16:9" ? { aspectRatio: "16/9" } : {}),
+              ...(codeStyleConfig.layout.aspectRatio === "4:5" ? { aspectRatio: "4/5" } : {}),
             }}
           >
             {/* Title bar */}
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div className="flex items-center gap-3">
-                {showWindowButtons && (
+                {codeStyleConfig.windowFrame.showButtons && (
                   <div className="flex gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
                   </div>
                 )}
-                <span className={`text-[10px] font-medium opacity-50 ${textCol}`}>{cardTitle}</span>
+                <span className="text-[10px] font-medium opacity-50 text-white">{codeStyleConfig.windowFrame.titleText}</span>
               </div>
               <ShieldCheck className="h-3.5 w-3.5 text-cyan-400 opacity-60" />
             </div>
 
-            {/* Content — never clips, scrolls horizontally if needed */}
+            {/* Content */}
             <div className="preview-code">
-              {mode === "image" && imageUrl ? (
-                <div className="p-4">
-                  <img
-                    src={imageUrl} alt="Preview"
-                    className="h-auto w-full object-contain"
-                    style={{ borderRadius: innerRadius }}
-                  />
-                </div>
-              ) : (
-                <SyntaxHighlighter
-                  language={language}
-                  style={themeStyles[theme]}
-                  showLineNumbers
-                  wrapLongLines={false}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1.5rem",
-                    fontSize: `${fontSize}px`,
-                    background: "transparent",
-                    lineHeight: 1.7,
-                    overflowX: "auto",
-                    whiteSpace: "pre",
-                  }}
-                  lineNumberStyle={{ opacity: 0.25, minWidth: "2.5em", paddingRight: "1em", userSelect: "none" }}
-                  codeTagProps={{ style: { backgroundColor: "transparent" } }}
-                  lineProps={() => ({ style: { display: "block", backgroundColor: "transparent" } })}
-                >
-                  {code}
-                </SyntaxHighlighter>
-              )}
+              <SyntaxHighlighter
+                language={language}
+                style={vscDarkPlus}
+                showLineNumbers
+                wrapLongLines={false}
+                customStyle={{
+                  margin: 0,
+                  padding: "1.5rem",
+                  fontSize: `${codeStyleConfig.typography.fontSize}px`,
+                  background: "transparent",
+                  lineHeight: codeStyleConfig.typography.lineHeight,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  fontFamily: codeStyleConfig.typography.fontFamily === "jetbrains" ? "'JetBrains Mono', monospace" : "monospace",
+                }}
+                lineNumberStyle={{ opacity: 0.25, minWidth: "2.5em", paddingRight: "1em", userSelect: "none" }}
+                codeTagProps={{ style: { backgroundColor: "transparent" } }}
+                lineProps={() => ({ style: { display: "block", backgroundColor: "transparent" } })}
+              >
+                {code}
+              </SyntaxHighlighter>
             </div>
 
             {/* Watermark */}
-            {watermark && (
-              <div className="absolute bottom-3 right-4 flex items-center gap-1.5 opacity-30">
+            {codeStyleConfig.watermark.opacity > 0 && (
+              <div
+                className="absolute flex items-center gap-1.5"
+                style={{
+                  bottom: codeStyleConfig.watermark.position.includes("bottom") ? "0.75rem" : "auto",
+                  right: codeStyleConfig.watermark.position.includes("right") ? "1rem" : "auto",
+                  left: codeStyleConfig.watermark.position.includes("left") ? "1rem" : "auto",
+                  opacity: codeStyleConfig.watermark.opacity,
+                }}
+              >
                 <Sparkles className="h-2.5 w-2.5 text-white" />
                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white">ContentIo</span>
               </div>
@@ -349,37 +388,37 @@ export function EditorStudio() {
   const [appTheme, setAppTheme] = useState<"light" | "dark">("light");
 
   // Editor state
-  const [mode, setMode]         = useState<Mode>("image");
+  const [mode, setMode]         = useState<EditorMode>("image");
   const [code, setCode]         = useState(starterCode);
   const [language, setLanguage] = useState<EditorLanguage>("javascript");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Style state
-  const [background, setBackground]     = useState<Background>("aurora");
-  const [padding, setPadding]           = useState(48);
-  const [radius, setRadius]             = useState(24);
-  const [shadow, setShadow]             = useState(true);
-  const [theme, setTheme]               = useState<Theme>("light");
-  const [fontSize, setFontSize]         = useState(14);
-  const [watermark, setWatermark]       = useState(true);
-  const [hdExport, setHdExport]         = useState(false);
-  const [opacity, setOpacity]           = useState(0.8);
-  const [tiltX, setTiltX]               = useState(0);
-  const [tiltY, setTiltY]               = useState(0);
-  const [showWindowButtons, setShowWindowButtons] = useState(true);
-  const [cardTitle, setCardTitle]       = useState("contentio.preview");
-  const [aspectRatio, setAspectRatio]   = useState<AspectRatio>("auto");
-  const [borderWidth, setBorderWidth]   = useState(1);
+  // Code style configuration
+  const [codeStyleConfig, setCodeStyleConfig] = useState<CodeStyleConfig>(DEFAULT_CODE_STYLE_CONFIG);
 
   // UI state
   const [isExporting, setIsExporting]   = useState(false);
   const [isSupporting, setIsSupporting] = useState(false);
-  // Mobile tab: "input" | "style" | "preview"
   const [mobileTab, setMobileTab]       = useState<MobileTab>("input");
+  const [screenshotBorder, setScreenshotBorder] = useState(true);
+  const [screenshotShadow, setScreenshotShadow] = useState(true);
+  const [screenshotRadius, setScreenshotRadius] = useState(12);
+  const [screenshotPadding, setScreenshotPadding] = useState(20);
+  const [screenshotBgStyle, setScreenshotBgStyle] = useState<"gradient" | "solid" | "blur" | "none">("gradient");
+  const [screenshotBgColor, setScreenshotBgColor] = useState("#1a1f2e");
+  const [screenshotShadowStrength, setScreenshotShadowStrength] = useState<"light" | "medium" | "heavy">("medium");
+  const [screenshotBorderColor, setScreenshotBorderColor] = useState("rgba(255,255,255,0.1)");
+  const [screenshotBorderWidth, setScreenshotBorderWidth] = useState(2);
+  const [screenshotFilter, setScreenshotFilter] = useState({ brightness: 1, contrast: 1, saturation: 1 });
 
   const previewRef  = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formatterRef = useRef<() => Promise<void>>(async () => {});
+
+  // Update code style config helper
+  const updateCodeStyle = (updates: Partial<CodeStyleConfig>) => {
+    setCodeStyleConfig(prev => ({ ...prev, ...updates }));
+  };
 
   // Sync app theme from <html data-theme>
   useEffect(() => {
@@ -410,7 +449,7 @@ export function EditorStudio() {
       await fetch('/api/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventType, path: '/editor', metadata: { mode, theme, aspectRatio, ...metadata } }),
+        body: JSON.stringify({ eventType, path: '/editor', metadata: { mode, theme: codeStyleConfig.syntaxTheme, aspectRatio: codeStyleConfig.layout.aspectRatio, ...metadata } }),
       });
     } catch { /* ignore */ }
   };
@@ -516,89 +555,215 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
 
   // ─── Shared Customize Panel ────────────────────────────────────────────────
 
+  const [hdExport, setHdExport] = useState(false);
+
   const CustomizePanel = () => (
-    <div className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar ${surfaceClass}`}>
-      <div className={`flex items-center justify-between border-b pb-3 ${isDarkTheme ? "border-slate-700" : "border-slate-200"}`}>
+    <div className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar h-[500px] md:h-auto overflow-y-auto scroll-smooth ${surfaceClass}`} style={{ scrollBehavior: "auto" }}>
+      <div className={`flex items-center justify-between border-b pb-3 sticky top-0 z-10 ${isDarkTheme ? "border-slate-700 bg-slate-950" : "border-slate-200 bg-white"}`}>
         <span className={`text-sm font-bold ${headingClass}`}>Customization</span>
         <Sparkles className="h-4 w-4 text-fuchsia-400" />
       </div>
 
       {/* Background */}
-      <section className="space-y-2">
-        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Background</label>
-        <div className="grid grid-cols-3 gap-2">
-          {(Object.keys(backgroundMap) as Background[]).map(b => (
-            <button key={b} onClick={() => setBackground(b)}
-              className={`rounded-xl border px-2 py-2 text-[10px] capitalize truncate transition ${
-                background === b
-                  ? isDarkTheme ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-cyan-400 bg-cyan-50 text-slate-900"
-                  : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >{b}</button>
-          ))}
-        </div>
+      <section className="space-y-3 scroll-m-96">
+        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>
+          {mode === "image" ? "Screenshot Display" : "Background"}
+        </label>
+        {mode === "code" ? (
+          <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            {(Object.keys(BACKGROUNDS) as BackgroundPreset[]).map(bgKey => {
+              const bg = BACKGROUNDS[bgKey];
+              return (
+                <button 
+                  key={bgKey} 
+                  onClick={() => updateCodeStyle({ background: bgKey })}
+                  className={`rounded-lg py-2 px-2 text-[9px] capitalize transition truncate scroll-m-20 `}
+                  style={{
+                    background: bg.previewColor,
+                    border: codeStyleConfig.background === bgKey ? `2px solid cyan` : `1px solid rgba(255,255,255,0.1)`,
+                    color: bg.previewColor === "#ffffff" || bg.previewColor === "#ffb3ba" ? "#000" : "#fff",
+                  }}
+                  title={bg.label}
+                >
+                  {bg.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4 rounded-xl border border-white/10 bg-slate-950/50 p-3 scroll-m-96">
+            {/* Background Style */}
+            <div className="space-y-2">
+              <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Background Style</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["gradient", "solid", "blur", "none"] as const).map(style => (
+                  <button key={style} onClick={() => setScreenshotBgStyle(style)}
+                    className={`rounded-lg py-1.5 text-[9px] font-medium capitalize transition ${
+                      screenshotBgStyle === style
+                        ? "border-cyan-400 bg-cyan-400/10 text-white"
+                        : "border border-white/10 bg-slate-900 text-slate-400 hover:bg-white/5"
+                    }`}
+                  >{style}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Background Color (for solid mode) */}
+            {screenshotBgStyle === "solid" && (
+              <div className="space-y-2">
+                <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Color</label>
+                <input type="color" value={screenshotBgColor} onChange={(e) => setScreenshotBgColor(e.target.value)} className="w-full h-8 rounded-lg cursor-pointer" />
+              </div>
+            )}
+
+            {/* Padding */}
+            <div className="space-y-2">
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Padding: <span className="font-mono">{screenshotPadding}px</span>
+              </label>
+              <input type="range" min="0" max="60" value={screenshotPadding} onChange={(e) => setScreenshotPadding(Number(e.target.value))} className="w-full accent-cyan-500" />
+            </div>
+
+            {/* Border Radius */}
+            <div className="space-y-2">
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Radius: <span className="font-mono">{screenshotRadius}px</span>
+              </label>
+              <input type="range" min="0" max="32" value={screenshotRadius} onChange={(e) => setScreenshotRadius(Number(e.target.value))} className="w-full accent-cyan-500" />
+            </div>
+
+            {/* Border Toggle and Color */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`flex items-center justify-between text-xs text-slate-300`}>
+                Show Border
+                <input type="checkbox" checked={screenshotBorder} onChange={(e) => setScreenshotBorder(e.target.checked)} className="accent-cyan-400 h-3.5 w-3.5" />
+              </label>
+              {screenshotBorder && (
+                <>
+                  <label className={`flex justify-between text-xs text-slate-300`}>
+                    Width: <span className="font-mono">{screenshotBorderWidth}px</span>
+                  </label>
+                  <input type="range" min="1" max="8" value={screenshotBorderWidth} onChange={(e) => setScreenshotBorderWidth(Number(e.target.value))} className="w-full accent-fuchsia-500" />
+                  <div className="space-y-1">
+                    <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Color</label>
+                    <input type="color" value={screenshotBorderColor.includes("rgb") ? "#ffffff" : screenshotBorderColor} onChange={(e) => setScreenshotBorderColor(e.target.value)} className="w-full h-6 rounded-lg cursor-pointer" />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Shadow */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`flex items-center justify-between text-xs text-slate-300`}>
+                Drop Shadow
+                <input type="checkbox" checked={screenshotShadow} onChange={(e) => setScreenshotShadow(e.target.checked)} className="accent-cyan-400 h-3.5 w-3.5" />
+              </label>
+              {screenshotShadow && (
+                <>
+                  <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Strength</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["light", "medium", "heavy"] as const).map(strength => (
+                      <button key={strength} onClick={() => setScreenshotShadowStrength(strength)}
+                        className={`rounded-lg py-1.5 text-[9px] font-medium capitalize transition ${
+                          screenshotShadowStrength === strength
+                            ? "border-cyan-400 bg-cyan-400/10 text-white"
+                            : "border border-white/10 bg-slate-900 text-slate-400 hover:bg-white/5"
+                        }`}
+                      >{strength}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Image Filters */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Image Effects</label>
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Brightness: <span className="font-mono">{(screenshotFilter.brightness * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0.5" max="1.5" step="0.1" value={screenshotFilter.brightness} onChange={(e) => setScreenshotFilter({...screenshotFilter, brightness: Number(e.target.value)})} className="w-full accent-fuchsia-500" />
+              
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Contrast: <span className="font-mono">{(screenshotFilter.contrast * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0.5" max="1.5" step="0.1" value={screenshotFilter.contrast} onChange={(e) => setScreenshotFilter({...screenshotFilter, contrast: Number(e.target.value)})} className="w-full accent-fuchsia-500" />
+              
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Saturation: <span className="font-mono">{(screenshotFilter.saturation * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0.5" max="1.5" step="0.1" value={screenshotFilter.saturation} onChange={(e) => setScreenshotFilter({...screenshotFilter, saturation: Number(e.target.value)})} className="w-full accent-fuchsia-500" />
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* Box Styling */}
+      {/* Box Styling - Code only */}
+      {mode === "code" && (
       <section className="space-y-3">
         <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Box Styling</label>
-        <SliderRow label="Padding"       valueLabel={`${padding}px`}             value={padding}  min={0}   max={120}  onChange={setPadding} />
-        <SliderRow label="Glass Opacity" valueLabel={`${Math.round(opacity*100)}%`} value={opacity} min={0}   max={1}    step={0.05} onChange={setOpacity} />
-        <SliderRow label="Radius"        valueLabel={`${radius}px`}               value={radius}   min={0}   max={64}   onChange={setRadius} />
+        <SliderRow label="Padding" valueLabel={`${codeStyleConfig.layout.padding}px`} value={codeStyleConfig.layout.padding} min={0} max={120} onChange={(v) => updateCodeStyle({ layout: { ...codeStyleConfig.layout, padding: v } })} />
+        <SliderRow label="Radius" valueLabel={`${codeStyleConfig.decoration.cornerRadius}px`} value={codeStyleConfig.decoration.cornerRadius} min={0} max={64} onChange={(v) => updateCodeStyle({ decoration: { ...codeStyleConfig.decoration, cornerRadius: v } })} />
       </section>
+      )}
 
-      {/* 3D */}
+      {/* 3D - Code only */}
+      {mode === "code" && (
       <section className="space-y-3">
         <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>3D Perspective (Beta)</label>
-        <SliderRow label="Tilt X" valueLabel={`${tiltX}°`} value={tiltX} min={-30} max={30} onChange={setTiltX} tone="cyan" />
-        <SliderRow label="Tilt Y" valueLabel={`${tiltY}°`} value={tiltY} min={-30} max={30} onChange={setTiltY} tone="cyan" />
+        <SliderRow label="Tilt X" valueLabel={`${codeStyleConfig.perspective3D.tiltX}°`} value={codeStyleConfig.perspective3D.tiltX} min={-30} max={30} onChange={(v) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltX: v } })} tone="cyan" />
+        <SliderRow label="Tilt Y" valueLabel={`${codeStyleConfig.perspective3D.tiltY}°`} value={codeStyleConfig.perspective3D.tiltY} min={-30} max={30} onChange={(v) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltY: v } })} tone="cyan" />
       </section>
+      )}
 
-      {/* Aesthetic */}
+      {/* Window Chrome - Code only */}
+      {mode === "code" && (
       <section className="space-y-3">
-        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Aesthetic</label>
+        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Window Chrome</label>
         <input
           className={`w-full rounded-xl border px-3 py-2 text-xs outline-none transition focus:border-fuchsia-400 ${
             isDarkTheme ? "border-white/10 bg-slate-950/50 text-white placeholder:text-slate-600" : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
           }`}
-          placeholder="Window title..." value={cardTitle}
-          onChange={e => setCardTitle(e.target.value)}
+          placeholder="Window title..." value={codeStyleConfig.windowFrame.titleText}
+          onChange={e => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, titleText: e.target.value } })}
         />
-        <div className="grid grid-cols-2 gap-2">
-          {(["dark", "light", "neon", "ocean", "sunset"] as Theme[]).map(t => (
-            <button key={t} onClick={() => setTheme(t)}
-              className={`rounded-xl border py-2 text-xs capitalize transition ${
-                theme === t
-                  ? isDarkTheme ? "border-fuchsia-400 bg-fuchsia-400/10 text-white" : "border-fuchsia-400 bg-fuchsia-50 text-fuchsia-700"
-                  : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-400 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >{t}</button>
-          ))}
-        </div>
-        {/* Aspect ratio */}
+        <label className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3 py-2.5 text-xs ${
+          isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
+        }`}>
+          Show Window Buttons
+          <input type="checkbox" checked={codeStyleConfig.windowFrame.showButtons} onChange={e => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, showButtons: e.target.checked } })} className="accent-fuchsia-500 h-3.5 w-3.5 ml-2" />
+        </label>
+      </section>
+      )}
+
+      {/* Watermark - Code only */}
+      {mode === "code" && (
+      <section className="space-y-3">
+        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Watermark</label>
+        <SliderRow label="Opacity" valueLabel={`${Math.round(codeStyleConfig.watermark.opacity * 100)}%`} value={codeStyleConfig.watermark.opacity} min={0} max={1} step={0.1} onChange={(v) => updateCodeStyle({ watermark: { ...codeStyleConfig.watermark, opacity: v } })} />
+      </section>
+      )}
+
+      {/* Layout - Code only */}
+      {mode === "code" && (
+      <section className="space-y-3">
+        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Layout</label>
         <div className="grid grid-cols-4 gap-2">
-          {(["auto", "1:1", "16:9", "4:5"] as AspectRatio[]).map(a => (
-            <button key={a} onClick={() => setAspectRatio(a)}
+          {["free", "1:1", "16:9", "4:5"].map(a => (
+            <button key={a} onClick={() => updateCodeStyle({ layout: { ...codeStyleConfig.layout, aspectRatio: a as any } })}
               className={`rounded-xl border py-2 text-[10px] transition ${
-                aspectRatio === a
+                codeStyleConfig.layout.aspectRatio === a
                   ? isDarkTheme ? "border-cyan-400 bg-cyan-400/10 text-white" : "border-cyan-400 bg-cyan-50 text-slate-900"
                   : isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-400 hover:bg-white/5" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >{a}</button>
           ))}
         </div>
-        {/* Toggles */}
-        {[
-          { label: "macOS Buttons", checked: showWindowButtons, set: setShowWindowButtons },
-          { label: "Watermark",     checked: watermark,         set: setWatermark         },
-        ].map(({ label, checked, set }) => (
-          <label key={label} className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3 py-2.5 text-xs ${
-            isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
-          }`}>
-            {label}
-            <input type="checkbox" checked={checked} onChange={e => set(e.target.checked)} className="accent-fuchsia-500 h-3.5 w-3.5 ml-2" />
-          </label>
-        ))}
+      </section>
+      )}
+
+      {/* Export */}
+      <section className="space-y-3">
         <label className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3 py-2.5 text-xs ${
           isDarkTheme ? "border-white/10 bg-slate-950/50 text-slate-300" : "border-slate-200 bg-white text-slate-700"
         }`}>
@@ -723,7 +888,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
         </div>
 
         {/* ── Mobile panels ─────────────────────────────────────────────── */}
-        <div className="lg:hidden space-y-4">
+        <div className="lg:hidden space-y-4 min-h-[500px]">
           {mobileTab === "input"   && <InputPanel />}
           {mobileTab === "style"   && <CustomizePanel />}
           {mobileTab === "preview" && (
@@ -750,11 +915,21 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                 <div style={{ minWidth: "min-content" }}>
                   <PreviewCard
                     ref={previewRef}
-                    mode={mode} imageUrl={imageUrl} code={code} language={language}
-                    background={background} padding={padding} radius={radius} shadow={shadow}
-                    theme={theme} fontSize={fontSize} watermark={watermark} opacity={opacity}
-                    tiltX={tiltX} tiltY={tiltY} showWindowButtons={showWindowButtons}
-                    cardTitle={cardTitle} aspectRatio={aspectRatio} borderWidth={borderWidth}
+                    mode={mode}
+                    imageUrl={imageUrl}
+                    code={code}
+                    language={language}
+                    codeStyleConfig={codeStyleConfig}
+                    screenshotBorder={screenshotBorder}
+                    screenshotShadow={screenshotShadow}
+                    screenshotRadius={screenshotRadius}
+                    screenshotPadding={screenshotPadding}
+                    screenshotBgStyle={screenshotBgStyle}
+                    screenshotBgColor={screenshotBgColor}
+                    screenshotShadowStrength={screenshotShadowStrength}
+                    screenshotBorderColor={screenshotBorderColor}
+                    screenshotBorderWidth={screenshotBorderWidth}
+                    screenshotFilter={screenshotFilter}
                   />
                 </div>
               </div>
@@ -770,7 +945,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
               <div className="grid grid-cols-2 gap-0 border-t divide-x" style={{ borderColor: isDarkTheme ? "rgba(71,85,105,0.5)" : "rgba(226,232,240,1)" }}>
                 <div className={`flex items-center gap-2 px-4 py-3 text-[10px] ${mutedClass}`}>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Live · <span className="font-mono">{aspectRatio}</span>
+                  Live · <span className="font-mono">{codeStyleConfig.layout.aspectRatio}</span>
                 </div>
                 <label className={`flex cursor-pointer items-center justify-between px-4 py-3 text-[10px] ${mutedClass}`}>
                   <span className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-cyan-400" /> HD 3×</span>
@@ -814,11 +989,21 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                 <div className="flex min-h-full items-start justify-center p-4" style={{ minWidth: "min-content" }}>
                   <PreviewCard
                     ref={previewRef}
-                    mode={mode} imageUrl={imageUrl} code={code} language={language}
-                    background={background} padding={padding} radius={radius} shadow={shadow}
-                    theme={theme} fontSize={fontSize} watermark={watermark} opacity={opacity}
-                    tiltX={tiltX} tiltY={tiltY} showWindowButtons={showWindowButtons}
-                    cardTitle={cardTitle} aspectRatio={aspectRatio} borderWidth={borderWidth}
+                    mode={mode}
+                    imageUrl={imageUrl}
+                    code={code}
+                    language={language}
+                    codeStyleConfig={codeStyleConfig}
+                    screenshotBorder={screenshotBorder}
+                    screenshotShadow={screenshotShadow}
+                    screenshotRadius={screenshotRadius}
+                    screenshotPadding={screenshotPadding}
+                    screenshotBgStyle={screenshotBgStyle}
+                    screenshotBgColor={screenshotBgColor}
+                    screenshotShadowStrength={screenshotShadowStrength}
+                    screenshotBorderColor={screenshotBorderColor}
+                    screenshotBorderWidth={screenshotBorderWidth}
+                    screenshotFilter={screenshotFilter}
                   />
                 </div>
               </div>
@@ -835,7 +1020,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
             <div className="grid grid-cols-2 gap-4">
               <div className={`flex items-center gap-2 rounded-[20px] border px-4 py-3 text-xs ${surfaceClass} ${mutedClass}`}>
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Live Canvas Active &nbsp;·&nbsp; <span className="font-mono text-[10px]">{aspectRatio}</span>
+                Live Canvas Active &nbsp;·&nbsp; <span className="font-mono text-[10px]">{codeStyleConfig.layout.aspectRatio}</span>
               </div>
               <label className={`flex cursor-pointer items-center justify-between rounded-[20px] border px-4 py-3 text-xs ${surfaceClass} ${mutedClass}`}>
                 <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-cyan-400" /> HD Export Mode</span>
@@ -912,6 +1097,25 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
         /* Ensure code inside preview never force-wraps */
         .preview-code pre { white-space: pre !important; }
         .preview-code code { white-space: pre !important; }
+
+        /* Prevent scroll jumping on customize panel */
+        .custom-scrollbar {
+          scroll-behavior: auto !important;
+          scroll-padding-top: 0 !important;
+        }
+        .custom-scrollbar input,
+        .custom-scrollbar button,
+        .custom-scrollbar label {
+          scroll-margin-top: 0 !important;
+          scroll-margin-bottom: 0 !important;
+        }
+        .custom-scrollbar section {
+          scroll-margin-top: 0 !important;
+        }
+        /* Prevent focus from scrolling */
+        .custom-scrollbar *:focus {
+          scroll-margin: 0 !important;
+        }
       `}</style>
     </div>
   );
