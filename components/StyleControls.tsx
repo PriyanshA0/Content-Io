@@ -62,7 +62,7 @@ interface StyleControlsProps {
 
 const backgrounds: Background[] = ["aurora", "sunset", "midnight", "emerald", "graphite", "glass"];
 const layouts: Layout[] = ["centered", "framed", "card"];
-const aspects: AspectRatio[] = ["auto", "1:1", "16:9", "4:5"];
+const aspects: AspectRatio[] = ["free", "1:1", "16:9", "4:5", "9:16"];
 const themes: { value: Theme; label: string }[] = [
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },

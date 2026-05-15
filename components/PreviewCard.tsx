@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import type { ImageFilters, ImageAdjustments, ImageOverlay, ImageFrame } from "../types/imageEditing";
-import { backgroundPresets } from "../lib/stylePresets";
+import { BACKGROUNDS } from "../lib/stylePresets";
 
 /**
  * Types & Constants
@@ -12,8 +12,8 @@ import { backgroundPresets } from "../lib/stylePresets";
  */
 export type Mode = "image" | "code";
 export type Theme = "dark" | "light" | "neon" | "ocean" | "sunset";
-export type AspectRatio = "auto" | "1:1" | "16:9" | "4:5";
-export type Background = "aurora" | "sunset" | "midnight" | "emerald" | "graphite" | "glass";
+export type AspectRatio = "free" | "1:1" | "16:9" | "4:5" | "9:16";
+export type Background = "aurora" | "sunset" | "midnight" | "emerald" | "graphite" | "glass" | "image-blur";
 
 interface PreviewCardProps {
   mode: Mode;
@@ -36,6 +36,12 @@ interface PreviewCardProps {
   cardTitle: string;
   aspectRatio: AspectRatio;
   borderWidth: number;
+  imageFilters?: ImageFilters;
+  imageAdjustments?: ImageAdjustments;
+  imageOverlay?: ImageOverlay;
+  imageFrame?: ImageFrame;
+  glowColor?: string;
+  polaroidCaption?: string;
 }
 
 /**
@@ -78,13 +84,15 @@ const backgroundMap: Record<Background, string> = {
   emerald: "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)",
   graphite: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
   glass: "rgba(255, 255, 255, 0.05)",
+  "image-blur": "transparent",
 };
 
 export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function PreviewCard(
   {
-    mode, imageUrl, code, background, padding, radius, shadow, theme, 
-    fontSize, watermark, opacity, tiltX, tiltY, 
-    showWindowButtons, cardTitle, aspectRatio, borderWidth
+    mode, imageUrl, code, background, padding, radius, shadow, theme,
+    fontSize, watermark, opacity, tiltX, tiltY,
+    showWindowButtons, cardTitle, aspectRatio, borderWidth,
+    imageFilters, imageAdjustments, imageOverlay, imageFrame, glowColor, polaroidCaption
   },
   ref
 ) {
@@ -93,10 +101,11 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
   const innerRadius = `${Math.max(radius - 12, 12)}px`;
   
   const aspectClassMap: Record<AspectRatio, string> = {
-    "auto": "w-full",
+    "free": "w-full",
     "1:1": "aspect-square w-full flex items-center justify-center",
     "16:9": "aspect-video w-full flex items-center justify-center",
     "4:5": "aspect-[4/5] w-full flex items-center justify-center",
+    "9:16": "aspect-[9/16] w-full flex items-center justify-center",
   };
 
   const surfaceBg = theme === "light" 
@@ -126,8 +135,8 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
   };
 
   // Find background preset value
-  const preset = backgroundPresets.find(b => b.id === background);
-  const bgValue = preset ? preset.value : backgroundPresets[0].value;
+  const preset = (BACKGROUNDS as any)[background];
+  const bgValue = preset ? preset.cssValue : Object.values(BACKGROUNDS)[0].cssValue;
 
   return (
     <div className="flex h-full w-full items-center justify-center p-4">
@@ -203,12 +212,12 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
                       display: 'block',
                       width: '100%',
                       height: 'auto',
-                      objectFit: ("objectFit" in props ? (props as any).objectFit : 'contain') as any,
-                      objectPosition: ("objectPosition" in props ? (props as any).objectPosition : 'center') as any,
-                      transform: `scale(${((props as any).imageAdjustments?.scale ?? 100) / 100}) scaleX(${( (props as any).imageAdjustments?.flipH ? -1 : 1 )}) scaleY(${( (props as any).imageAdjustments?.flipV ? -1 : 1 )}) rotate(${(props as any).imageAdjustments?.rotation ?? 0}deg)`,
-                      opacity: ((props as any).imageAdjustments?.imageOpacity ?? 100) / 100,
-                      borderRadius: `${(props as any).imageAdjustments?.imageRadius ?? 8}px`,
-                      filter: makeFilterString((props as any).imageFilters ?? undefined),
+                      objectFit: imageAdjustments?.objectFit ?? 'contain',
+                      objectPosition: imageAdjustments?.objectPosition ?? 'center',
+                      transform: `scale(${(imageAdjustments?.scale ?? 100) / 100}) scaleX(${imageAdjustments?.flipH ? -1 : 1}) scaleY(${imageAdjustments?.flipV ? -1 : 1}) rotate(${imageAdjustments?.rotation ?? 0}deg)`,
+                      opacity: (imageAdjustments?.imageOpacity ?? 100) / 100,
+                      borderRadius: `${imageAdjustments?.imageRadius ?? 8}px`,
+                      filter: makeFilterString(imageFilters ?? undefined),
                       maxHeight: '600px',
                       maxWidth: '100%',
                       zIndex: 1,
@@ -219,32 +228,32 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
 
                 {/* Overlays (all absolute, pointer-events:none) */}
                 {/* Color Overlay */}
-                {(props as any).imageOverlay?.colorOverlay && (
-                  <div style={{ position: 'absolute', inset: 0, background: (props as any).imageOverlay.colorOverlayColor, opacity: ((props as any).imageOverlay.colorOverlayOpacity ?? 0) / 100, mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 10 }} />
+                {imageOverlay?.colorOverlay && (
+                  <div style={{ position: 'absolute', inset: 0, background: imageOverlay.colorOverlayColor, opacity: ((imageOverlay.colorOverlayOpacity ?? 0) / 100), mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 10 }} />
                 )}
 
                 {/* Gradient Overlay */}
-                {(props as any).imageOverlay?.gradientOverlay && (
-                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(${(props as any).imageOverlay.gradientDirection}, ${(props as any).imageOverlay.gradientColor1}, ${(props as any).imageOverlay.gradientColor2})`, opacity: ((props as any).imageOverlay.gradientOpacity ?? 0) / 100, pointerEvents: 'none', zIndex: 11 }} />
+                {imageOverlay?.gradientOverlay && (
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(${imageOverlay.gradientDirection}, ${imageOverlay.gradientColor1}, ${imageOverlay.gradientColor2})`, opacity: ((imageOverlay.gradientOpacity ?? 0) / 100), pointerEvents: 'none', zIndex: 11 }} />
                 )}
 
                 {/* Vignette */}
-                {(props as any).imageOverlay?.vignette && (
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 12, background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.85) 100%)', opacity: ((props as any).imageOverlay.vignetteIntensity ?? 0) / 100 }} />
+                {imageOverlay?.vignette && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 12, background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.85) 100%)', opacity: ((imageOverlay.vignetteIntensity ?? 0) / 100) }} />
                 )}
 
                 {/* Scanlines */}
-                {(props as any).imageOverlay?.scanlines && (
+                {imageOverlay?.scanlines && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 13, backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)' }} />
                 )}
 
                 {/* Grain */}
-                {(props as any).imageOverlay?.grain && (
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 14, backgroundImage: makeGrainUrl((props as any).imageOverlay.grainIntensity ?? 6), opacity: 0.35, mixBlendMode: 'overlay' }} />
+                {imageOverlay?.grain && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 14, backgroundImage: makeGrainUrl(imageOverlay.grainIntensity ?? 6), opacity: 0.35, mixBlendMode: 'overlay' }} />
                 )}
 
                 {/* Light Leak */}
-                {(props as any).imageOverlay?.lightLeak && (
+                {imageOverlay?.lightLeak && (
                   <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '60%', height: '60%', pointerEvents: 'none', zIndex: 15, background: 'radial-gradient(circle,rgba(251,191,36,0.4),rgba(251,146,60,0.2),transparent 70%)', filter: 'blur(20px)' }} />
                 )}
 
