@@ -101,7 +101,13 @@ interface PreviewCardProps {
     brightness: number;
     contrast: number;
     saturation: number;
+    hue?: number;
+    blur?: number;
   };
+  screenshotOpacity?: number;
+  screenshotVignette?: number;
+  screenshotTintColor?: string;
+  screenshotTintOpacity?: number;
 }
 
 const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
@@ -116,7 +122,11 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
     screenshotShadowStrength = "medium",
     screenshotBorderColor = "rgba(255,255,255,0.1)",
     screenshotBorderWidth = 2,
-    screenshotFilter = { brightness: 1, contrast: 1, saturation: 1 }
+    screenshotFilter = { brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0 },
+    screenshotOpacity = 1,
+    screenshotVignette = 0,
+    screenshotTintColor = "#ffffff",
+    screenshotTintOpacity = 0
   }, ref) => {
     const bg = BACKGROUNDS[codeStyleConfig.background];
     const borderRadius = `${codeStyleConfig.decoration.cornerRadius}px`;
@@ -135,30 +145,58 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
       none: "transparent"
     };
 
+    // Apply vignette effect CSS
+    const vignetteStyle = screenshotVignette > 0 
+      ? `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,${screenshotVignette * 0.5}) 100%)`
+      : "none";
+
     // For image mode - render without frame
     if (mode === "image" && imageUrl) {
       return (
         <div
           ref={ref}
-          className="preview-capture inline-block min-w-full"
+          className="preview-capture inline-block min-w-full relative"
           style={{
             padding: `${screenshotPadding}px`,
             background: bgStyleMap[screenshotBgStyle],
           }}
         >
-          <img
-            src={imageUrl}
-            alt="Preview"
-            className="block mx-auto h-auto w-full object-contain"
-            style={{ 
-              borderRadius: `${screenshotRadius}px`,
-              border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : "none",
-              boxShadow: screenshotShadow ? shadowMap[screenshotShadowStrength] : "none",
-              filter: `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation})`,
-              maxHeight: "600px", 
-              maxWidth: "100%"
-            }}
-          />
+          <div className="relative inline-block w-full" style={{ opacity: screenshotOpacity }}>
+            <img
+              src={imageUrl}
+              alt="Preview"
+              className="block mx-auto h-auto w-full object-contain"
+              style={{ 
+                borderRadius: `${screenshotRadius}px`,
+                border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : "none",
+                boxShadow: screenshotShadow ? shadowMap[screenshotShadowStrength] : "none",
+                filter: `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation}) hue-rotate(${(screenshotFilter.hue || 0) * 3.6}deg) blur(${screenshotFilter.blur || 0}px)`,
+                maxHeight: "600px", 
+                maxWidth: "100%"
+              }}
+            />
+            {/* Vignette overlay */}
+            {screenshotVignette > 0 && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  borderRadius: `${screenshotRadius}px`,
+                  background: vignetteStyle,
+                }}
+              />
+            )}
+            {/* Tint overlay */}
+            {screenshotTintOpacity > 0 && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  borderRadius: `${screenshotRadius}px`,
+                  background: screenshotTintColor,
+                  opacity: screenshotTintOpacity * 0.3,
+                }}
+              />
+            )}
+          </div>
         </div>
       );
     }
@@ -409,7 +447,11 @@ export function EditorStudio() {
   const [screenshotShadowStrength, setScreenshotShadowStrength] = useState<"light" | "medium" | "heavy">("medium");
   const [screenshotBorderColor, setScreenshotBorderColor] = useState("rgba(255,255,255,0.1)");
   const [screenshotBorderWidth, setScreenshotBorderWidth] = useState(2);
-  const [screenshotFilter, setScreenshotFilter] = useState({ brightness: 1, contrast: 1, saturation: 1 });
+  const [screenshotFilter, setScreenshotFilter] = useState({ brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0 });
+  const [screenshotOpacity, setScreenshotOpacity] = useState(1);
+  const [screenshotVignette, setScreenshotVignette] = useState(0);
+  const [screenshotTintColor, setScreenshotTintColor] = useState("#ffffff");
+  const [screenshotTintOpacity, setScreenshotTintOpacity] = useState(0);
 
   const previewRef  = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -558,14 +600,14 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
   const [hdExport, setHdExport] = useState(false);
 
   const CustomizePanel = () => (
-    <div className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar h-[500px] md:h-auto overflow-y-auto scroll-smooth ${surfaceClass}`} style={{ scrollBehavior: "auto" }}>
+    <div className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar h-[500px] md:h-auto overflow-y-auto ${surfaceClass}`}>
       <div className={`flex items-center justify-between border-b pb-3 sticky top-0 z-10 ${isDarkTheme ? "border-slate-700 bg-slate-950" : "border-slate-200 bg-white"}`}>
         <span className={`text-sm font-bold ${headingClass}`}>Customization</span>
         <Sparkles className="h-4 w-4 text-fuchsia-400" />
       </div>
 
       {/* Background */}
-      <section className="space-y-3 scroll-m-96">
+      <section className="space-y-3">
         <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>
           {mode === "image" ? "Screenshot Display" : "Background"}
         </label>
@@ -577,7 +619,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                 <button 
                   key={bgKey} 
                   onClick={() => updateCodeStyle({ background: bgKey })}
-                  className={`rounded-lg py-2 px-2 text-[9px] capitalize transition truncate scroll-m-20 `}
+                  className={`rounded-lg py-2 px-2 text-[9px] capitalize transition truncate`}
                   style={{
                     background: bg.previewColor,
                     border: codeStyleConfig.background === bgKey ? `2px solid cyan` : `1px solid rgba(255,255,255,0.1)`,
@@ -591,7 +633,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
             })}
           </div>
         ) : (
-          <div className="space-y-4 rounded-xl border border-white/10 bg-slate-950/50 p-3 scroll-m-96">
+          <div className="space-y-4 rounded-xl border border-white/10 bg-slate-950/50 p-3">
             {/* Background Style */}
             <div className="space-y-2">
               <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Background Style</label>
@@ -676,6 +718,14 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
               )}
             </div>
 
+            {/* Screenshot Opacity */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Opacity: <span className="font-mono">{(screenshotOpacity * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0.1" max="1" step="0.05" value={screenshotOpacity} onChange={(e) => setScreenshotOpacity(Number(e.target.value))} className="w-full accent-fuchsia-500" />
+            </div>
+
             {/* Image Filters */}
             <div className="space-y-2 pt-2 border-t border-white/5">
               <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Image Effects</label>
@@ -693,6 +743,35 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                 Saturation: <span className="font-mono">{(screenshotFilter.saturation * 100).toFixed(0)}%</span>
               </label>
               <input type="range" min="0.5" max="1.5" step="0.1" value={screenshotFilter.saturation} onChange={(e) => setScreenshotFilter({...screenshotFilter, saturation: Number(e.target.value)})} className="w-full accent-fuchsia-500" />
+
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Hue Rotate: <span className="font-mono">{(screenshotFilter.hue || 0) * 3.6}°</span>
+              </label>
+              <input type="range" min="0" max="100" value={screenshotFilter.hue || 0} onChange={(e) => setScreenshotFilter({...screenshotFilter, hue: Number(e.target.value)})} className="w-full accent-purple-500" />
+
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Blur: <span className="font-mono">{screenshotFilter.blur || 0}px</span>
+              </label>
+              <input type="range" min="0" max="20" step="0.5" value={screenshotFilter.blur || 0} onChange={(e) => setScreenshotFilter({...screenshotFilter, blur: Number(e.target.value)})} className="w-full accent-blue-500" />
+            </div>
+
+            {/* Vignette Effect */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Vignette: <span className="font-mono">{(screenshotVignette * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0" max="1" step="0.05" value={screenshotVignette} onChange={(e) => setScreenshotVignette(Number(e.target.value))} className="w-full accent-indigo-500" />
+            </div>
+
+            {/* Tint Overlay */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <label className={`flex justify-between text-xs text-slate-300`}>
+                Tint: <span className="font-mono">{(screenshotTintOpacity * 100).toFixed(0)}%</span>
+              </label>
+              <input type="range" min="0" max="1" step="0.05" value={screenshotTintOpacity} onChange={(e) => setScreenshotTintOpacity(Number(e.target.value))} className="w-full accent-cyan-500" />
+              {screenshotTintOpacity > 0 && (
+                <input type="color" value={screenshotTintColor} onChange={(e) => setScreenshotTintColor(e.target.value)} className="w-full h-6 rounded-lg cursor-pointer" />
+              )}
             </div>
           </div>
         )}
@@ -930,6 +1009,10 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     screenshotBorderColor={screenshotBorderColor}
                     screenshotBorderWidth={screenshotBorderWidth}
                     screenshotFilter={screenshotFilter}
+                    screenshotOpacity={screenshotOpacity}
+                    screenshotVignette={screenshotVignette}
+                    screenshotTintColor={screenshotTintColor}
+                    screenshotTintOpacity={screenshotTintOpacity}
                   />
                 </div>
               </div>
@@ -1004,6 +1087,10 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     screenshotBorderColor={screenshotBorderColor}
                     screenshotBorderWidth={screenshotBorderWidth}
                     screenshotFilter={screenshotFilter}
+                    screenshotOpacity={screenshotOpacity}
+                    screenshotVignette={screenshotVignette}
+                    screenshotTintColor={screenshotTintColor}
+                    screenshotTintOpacity={screenshotTintOpacity}
                   />
                 </div>
               </div>
