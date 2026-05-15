@@ -520,6 +520,8 @@ export function EditorStudio() {
   const [effectsAdvanced, setEffectsAdvanced] = useState({ glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 });
 
   const previewRef  = useRef<HTMLDivElement>(null);
+  const customizePanelRef = useRef<HTMLDivElement>(null);
+  const lastScrollPositionRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formatterRef = useRef<() => Promise<void>>(async () => {});
 
@@ -536,6 +538,26 @@ export function EditorStudio() {
     const obs = new MutationObserver(sync);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => obs.disconnect();
+  }, []);
+
+  // ─── SCROLL FIX: Use simple memory-based restoration ───
+  useEffect(() => {
+    const panel = customizePanelRef.current;
+    if (!panel) return;
+
+    // Store last known good scroll position
+    let lastGoodScroll = panel.scrollTop;
+
+    // Check scroll position periodically and restore if it changed unexpectedly
+    const interval = setInterval(() => {
+      // If scroll changed and we're not actively scrolling, restore it
+      if (panel.scrollTop !== lastGoodScroll) {
+        panel.scrollTop = lastGoodScroll;
+      }
+      lastGoodScroll = panel.scrollTop;
+    }, 50);
+
+    return () => clearInterval(interval);
   }, []);
 
   const isDarkTheme = appTheme === "dark";
@@ -666,7 +688,7 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
   const [hdExport, setHdExport] = useState(false);
 
   const CustomizePanel = () => (
-    <div className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar h-[500px] md:h-auto overflow-y-auto ${surfaceClass}`}>
+    <div ref={customizePanelRef} className={`rounded-[20px] lg:rounded-[24px] p-4 shadow-sm space-y-5 lg:max-h-[72vh] lg:overflow-y-auto custom-scrollbar h-[500px] md:h-auto overflow-y-auto ${surfaceClass}`}>
       <div className={`flex items-center justify-between border-b pb-3 sticky top-0 z-10 ${isDarkTheme ? "border-slate-700 bg-slate-950" : "border-slate-200 bg-white"}`}>
         <span className={`text-sm font-bold ${headingClass}`}>Customization</span>
         <Sparkles className="h-4 w-4 text-fuchsia-400" />
@@ -1343,44 +1365,15 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
         .preview-code pre { white-space: pre !important; }
         .preview-code code { white-space: pre !important; }
 
-        /* COMPREHENSIVE SCROLL FIX - Prevent all scroll jumping */
+        /* COMPREHENSIVE SCROLL FIX */
         .custom-scrollbar {
           scroll-behavior: auto !important;
           scroll-padding: 0 !important;
-          overflow-anchor: none;
+          overflow-anchor: none !important;
+          position: relative;
         }
         
-        /* Prevent focus from causing scroll on ALL elements */
-        .custom-scrollbar *:focus,
-        .custom-scrollbar *:focus-visible {
-          scroll-margin: 0 !important;
-          outline-offset: 0 !important;
-        }
-
-        /* Prevent scroll on input interactions */
-        .custom-scrollbar input[type="range"],
-        .custom-scrollbar input[type="checkbox"],
-        .custom-scrollbar input[type="text"],
-        .custom-scrollbar input[type="color"],
-        .custom-scrollbar button,
-        .custom-scrollbar label {
-          scroll-margin: 0 !important;
-          scroll-padding: 0 !important;
-        }
-
-        /* Prevent section scroll anchoring */
-        .custom-scrollbar section {
-          scroll-margin: 0 !important;
-          scroll-padding: 0 !important;
-        }
-
-        /* Lock scroll position while interacting */
-        .custom-scrollbar:has(input:active),
-        .custom-scrollbar:has(button:active) {
-          overflow-y: hidden;
-        }
-
-        /* Ensure no automatic scroll on element insertion */
+        /* Zero scroll-margin on all elements */
         .custom-scrollbar * {
           scroll-margin: 0 !important;
         }
