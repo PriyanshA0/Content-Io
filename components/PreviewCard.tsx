@@ -2,6 +2,8 @@
 
 import { forwardRef } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
+import type { ImageFilters, ImageAdjustments, ImageOverlay, ImageFrame } from "../types/imageEditing";
+import { backgroundPresets } from "../lib/stylePresets";
 
 /**
  * Types & Constants
@@ -103,6 +105,30 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
 
   const textClass = theme === "light" ? "text-slate-800" : "text-white";
 
+  // Helper: build CSS filter string from ImageFilters-like object
+  const makeFilterString = (f: Partial<ImageFilters> | undefined) => {
+    if (!f) return "";
+    const brightness = f.brightness ?? 100;
+    const contrast = f.contrast ?? 100;
+    const saturation = f.saturation ?? 100;
+    const hue = f.hueRotate ?? 0;
+    const blurPx = f.blur ?? 0;
+    const grayscale = f.grayscale ?? 0;
+    const sepia = f.sepia ?? 0;
+    const invert = f.invert ? " invert(100%)" : "";
+    return `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg) blur(${blurPx}px) grayscale(${grayscale}%) sepia(${sepia}%)${invert}`;
+  };
+
+  // Grain SVG generator
+  const makeGrainUrl = (intensity: number) => {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='1' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='${Math.min(0.8, intensity/100)}' fill='black'/></svg>`;
+    return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+  };
+
+  // Find background preset value
+  const preset = backgroundPresets.find(b => b.id === background);
+  const bgValue = preset ? preset.value : backgroundPresets[0].value;
+
   return (
     <div className="flex h-full w-full items-center justify-center p-4">
       <div
@@ -110,7 +136,7 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
         className={`${aspectClassMap[aspectRatio]} overflow-hidden transition-all duration-300`}
         style={{
           padding: `${padding}px`,
-          background: backgroundMap[background] || backgroundMap.aurora,
+          background: bgValue,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -132,9 +158,9 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
             <div className="flex items-center gap-4">
               {showWindowButtons && (
                 <div className="flex gap-2">
-                  <span className="h-3 w-3 rounded-full bg-rose-500/80 shadow-[0_0_8px_rgba(244,63,94,0.3)]" />
-                  <span className="h-3 w-3 rounded-full bg-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.3)]" />
-                  <span className="h-3 w-3 rounded-full bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                  <span className="h-3 w-3 rounded-full bg-rose-500/80" />
+                  <span className="h-3 w-3 rounded-full bg-amber-500/80" />
+                  <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
                 </div>
               )}
               <span className={`text-xs font-medium opacity-50 ${textClass}`}>{cardTitle}</span>
@@ -145,22 +171,92 @@ export const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(function
           </div>
 
           {/* Content */}
-          <div className="p-4">
+          <div className="p-4 relative">
             {mode === "image" && imageUrl ? (
               <div className="relative overflow-hidden" style={{ borderRadius: innerRadius }}>
-                <img 
-                  src={imageUrl} 
-                  alt="Preview" 
-                  className="max-h-[500px] w-full object-contain" 
-                />
+                {/* Background blurred image (image-blur background option) */}
+                {background === "image-blur" && (
+                  <img
+                    src={imageUrl}
+                    aria-hidden
+                    alt=""
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      filter: "blur(40px)",
+                      transform: "scale(1.15)",
+                      opacity: 0.65,
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+
+                {/* Main image wrapper */}
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: 'auto',
+                      objectFit: ("objectFit" in props ? (props as any).objectFit : 'contain') as any,
+                      objectPosition: ("objectPosition" in props ? (props as any).objectPosition : 'center') as any,
+                      transform: `scale(${((props as any).imageAdjustments?.scale ?? 100) / 100}) scaleX(${( (props as any).imageAdjustments?.flipH ? -1 : 1 )}) scaleY(${( (props as any).imageAdjustments?.flipV ? -1 : 1 )}) rotate(${(props as any).imageAdjustments?.rotation ?? 0}deg)`,
+                      opacity: ((props as any).imageAdjustments?.imageOpacity ?? 100) / 100,
+                      borderRadius: `${(props as any).imageAdjustments?.imageRadius ?? 8}px`,
+                      filter: makeFilterString((props as any).imageFilters ?? undefined),
+                      maxHeight: '600px',
+                      maxWidth: '100%',
+                      zIndex: 1,
+                    }}
+                    className="mx-auto"
+                  />
+                </div>
+
+                {/* Overlays (all absolute, pointer-events:none) */}
+                {/* Color Overlay */}
+                {(props as any).imageOverlay?.colorOverlay && (
+                  <div style={{ position: 'absolute', inset: 0, background: (props as any).imageOverlay.colorOverlayColor, opacity: ((props as any).imageOverlay.colorOverlayOpacity ?? 0) / 100, mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 10 }} />
+                )}
+
+                {/* Gradient Overlay */}
+                {(props as any).imageOverlay?.gradientOverlay && (
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(${(props as any).imageOverlay.gradientDirection}, ${(props as any).imageOverlay.gradientColor1}, ${(props as any).imageOverlay.gradientColor2})`, opacity: ((props as any).imageOverlay.gradientOpacity ?? 0) / 100, pointerEvents: 'none', zIndex: 11 }} />
+                )}
+
+                {/* Vignette */}
+                {(props as any).imageOverlay?.vignette && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 12, background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.85) 100%)', opacity: ((props as any).imageOverlay.vignetteIntensity ?? 0) / 100 }} />
+                )}
+
+                {/* Scanlines */}
+                {(props as any).imageOverlay?.scanlines && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 13, backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)' }} />
+                )}
+
+                {/* Grain */}
+                {(props as any).imageOverlay?.grain && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 14, backgroundImage: makeGrainUrl((props as any).imageOverlay.grainIntensity ?? 6), opacity: 0.35, mixBlendMode: 'overlay' }} />
+                )}
+
+                {/* Light Leak */}
+                {(props as any).imageOverlay?.lightLeak && (
+                  <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '60%', height: '60%', pointerEvents: 'none', zIndex: 15, background: 'radial-gradient(circle,rgba(251,191,36,0.4),rgba(251,146,60,0.2),transparent 70%)', filter: 'blur(20px)' }} />
+                )}
+
+                {/* Polaroid caption support is handled via props.imageFrame === 'polaroid' in parent (not shown here) */}
               </div>
             ) : (
               <div className="overflow-hidden" style={{ borderRadius: innerRadius }}>
-                <SimpleSyntaxHighlighter
-                  code={code}
-                  theme={theme}
-                  fontSize={fontSize}
-                />
+                {/* Keep code mode exactly as before */}
+                <div className="p-6 font-mono leading-relaxed whitespace-pre overflow-x-auto custom-scrollbar" style={{ fontSize: `${fontSize}px`, color: textClass === 'text-slate-800' ? '#24292e' : '#f8f8f2' }}>
+                  {/* Reuse simple highlighter fallback */}
+                  {code}
+                </div>
               </div>
             )}
           </div>

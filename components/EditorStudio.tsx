@@ -34,6 +34,9 @@ import { CodeStyleConfig, EditorLanguage, EditorMode, BackgroundPreset } from '@
 import { DEFAULT_CODE_STYLE_CONFIG, BACKGROUNDS } from '@/lib/stylePresets';
 import { WindowFrameRenderer } from './WindowFrameRenderer';
 import { CodeHighlighter } from './CodeHighlighter';
+import { StyleControls } from './StyleControls';
+import type { ImageFilters, ImageAdjustments, ImageOverlay, ImageFrame, ImagePresetId } from '../types/imageEditing';
+import { DEFAULT_IMAGE_FILTERS, DEFAULT_IMAGE_ADJUSTMENTS, DEFAULT_IMAGE_OVERLAY, IMAGE_FILTER_PRESETS } from '../types/imageEditing';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Mobile panel tab
@@ -104,6 +107,13 @@ interface PreviewCardProps {
     hue?: number;
     blur?: number;
   };
+  // New image editing props
+  imageFilters?: Partial<import('../types/imageEditing').ImageFilters>;
+  imageAdjustments?: Partial<import('../types/imageEditing').ImageAdjustments>;
+  imageOverlay?: Partial<import('../types/imageEditing').ImageOverlay>;
+  imageFrame?: import('../types/imageEditing').ImageFrame;
+  glowColor?: string;
+  polaroidCaption?: string;
   screenshotOpacity?: number;
   screenshotVignette?: number;
   screenshotTintColor?: string;
@@ -132,7 +142,13 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
     screenshotTintOpacity = 0,
     textOverlay = { enabled: false, text: "", fontSize: 24, color: "#ffffff", position: "bottom-center" },
     cropSettings = { enabled: false, left: 0, top: 0, width: 100, height: 100 },
-    effectsAdvanced = { glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 }
+    effectsAdvanced = { glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 },
+    imageFilters = undefined,
+    imageAdjustments = undefined,
+    imageOverlay = undefined,
+    imageFrame = "none",
+    glowColor = "#a855f7",
+    polaroidCaption = ""
   }, ref) => {
     const bg = BACKGROUNDS[codeStyleConfig.background];
     const borderRadius = `${codeStyleConfig.decoration.cornerRadius}px`;
@@ -142,6 +158,12 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
       light: "0 4px 12px rgba(0,0,0,0.2)",
       medium: "0 20px 60px rgba(0,0,0,0.6)",
       heavy: "0 40px 100px rgba(0,0,0,0.8)"
+    };
+
+    // Grain SVG data URI helper
+    const makeGrainUrl = (intensity = 10, seed = 42) => {
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400'><filter id='g'><feTurbulence baseFrequency='0.9' numOctaves='1' seed='${seed}'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 ${Math.min(1, intensity/100)}'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(#g)' opacity='0.6'/></svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     };
 
     const bgStyleMap = {
@@ -156,8 +178,19 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
       ? `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,${screenshotVignette * 0.5}) 100%)`
       : "none";
 
-    // Build complete filter string with advanced effects
+    // Build complete filter string with advanced effects or imageFilters when provided
     const buildFilter = () => {
+      if (imageFilters) {
+        const b = imageFilters.brightness ?? 100;
+        const c = imageFilters.contrast ?? 100;
+        const s = imageFilters.saturation ?? 100;
+        const h = imageFilters.hueRotate ?? 0;
+        const bl = imageFilters.blur ?? 0;
+        const g = imageFilters.grayscale ?? 0;
+        const sp = imageFilters.sepia ?? 0;
+        const inv = imageFilters.invert ? ' invert(100%)' : '';
+        return `brightness(${b}%) contrast(${c}%) saturate(${s}%) hue-rotate(${h}deg) blur(${bl}px) grayscale(${g}%) sepia(${sp}%)${inv}`;
+      }
       const baseFilter = `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation}) hue-rotate(${(screenshotFilter.hue || 0) * 3.6}deg) blur(${screenshotFilter.blur || 0}px)`;
       const advancedFilter = `sepia(${(effectsAdvanced.sepia || 0) * 0.5}%) grayscale(${effectsAdvanced.grayscale || 0}%) invert(${(effectsAdvanced.invert || 0) * 0.01})`;
       return `${baseFilter} ${advancedFilter}`;
@@ -198,14 +231,21 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
             <img
               src={imageUrl}
               alt="Preview"
-              className="block mx-auto h-auto w-full object-contain"
               style={{ 
-                borderRadius: `${screenshotRadius}px`,
-                border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : "none",
-                boxShadow: screenshotShadow ? `${shadowMap[screenshotShadowStrength]}, inset 0 0 ${(effectsAdvanced.glow || 0) * 2}px rgba(255,255,255,${(effectsAdvanced.glow || 0) * 0.1})` : "none",
+                display: 'block',
+                margin: '0 auto',
+                width: '100%',
+                height: 'auto',
+                objectFit: imageAdjustments?.objectFit ?? 'contain',
+                objectPosition: imageAdjustments?.objectPosition ?? 'center',
+                borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : 'none',
+                boxShadow: screenshotShadow ? `${shadowMap[screenshotShadowStrength]}, inset 0 0 ${(effectsAdvanced.glow || 0) * 2}px rgba(255,255,255,${(effectsAdvanced.glow || 0) * 0.1})` : 'none',
                 filter: buildFilter(),
-                maxHeight: "600px", 
-                maxWidth: "100%"
+                transform: `scale(${(imageAdjustments?.scale ?? 100) / 100}) scaleX(${imageAdjustments?.flipH ? -1 : 1}) scaleY(${imageAdjustments?.flipV ? -1 : 1}) rotate(${imageAdjustments?.rotation ?? 0}deg)`,
+                opacity: (imageAdjustments?.imageOpacity ?? 100) / 100,
+                maxHeight: '600px',
+                maxWidth: '100%'
               }}
             />
             {/* Vignette overlay */}
@@ -256,6 +296,71 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
                   background: `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,${effectsAdvanced.shadow * 0.1}) 100%)`,
                 }}
               />
+            )}
+            {/* Image color overlay (duotone / tint) */}
+            {imageOverlay?.colorOverlay && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                  background: imageOverlay.colorOverlayColor || '#ffffff',
+                  opacity: (imageOverlay.colorOverlayOpacity ?? 50) / 100,
+                  mixBlendMode: 'multiply',
+                }}
+              />
+            )}
+            {/* Grain / film noise overlay */}
+            {imageOverlay?.grain && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                  backgroundImage: `url('${makeGrainUrl(imageOverlay.grainIntensity ?? 6, 123)}')`,
+                  backgroundSize: 'cover',
+                  opacity: Math.min(0.9, ((imageOverlay.grainIntensity ?? 6) / 100)),
+                }}
+              />
+            )}
+            {/* Gradient overlay */}
+            {imageOverlay?.gradientOverlay && (
+              <div className="absolute inset-0 pointer-events-none" style={{
+                borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                background: `linear-gradient(${imageOverlay.gradientDirection || 'to bottom'}, ${imageOverlay.gradientColor1 || '#000000'} 0%, ${imageOverlay.gradientColor2 || '#ffffff'} 100%)`,
+                opacity: (imageOverlay.gradientOpacity ?? 30) / 100,
+                mixBlendMode: 'overlay'
+              }} />
+            )}
+            {/* Scanlines */}
+            {imageOverlay?.scanlines && (
+              <div className="absolute inset-0 pointer-events-none" style={{
+                borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                backgroundImage: `repeating-linear-gradient(transparent, transparent 2px, rgba(0,0,0,0.06) 3px)`,
+                opacity: 0.6
+              }} />
+            )}
+            {/* Light leak */}
+            {imageOverlay?.lightLeak && (
+              <div className="absolute inset-0 pointer-events-none" style={{
+                borderRadius: `${imageAdjustments?.imageRadius ?? screenshotRadius}px`,
+                backgroundImage: 'radial-gradient(circle at 10% 10%, rgba(255,94,95,0.25), transparent 20%), radial-gradient(circle at 90% 80%, rgba(255,196,0,0.18), transparent 20%)',
+                mixBlendMode: 'screen',
+                opacity: 0.9
+              }} />
+            )}
+            {/* Simple polaroid frame */}
+            {imageFrame === 'polaroid' && (
+              <div className="absolute inset-0 pointer-events-none flex items-end justify-center" style={{ zIndex: 0 }}>
+                <div style={{
+                  width: 'calc(100% - 40px)',
+                  height: 'auto',
+                  background: '#fff',
+                  padding: '16px',
+                  paddingBottom: '48px',
+                  transform: 'rotate(-1.5deg)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)'
+                }} />
+                <div style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 25, color: '#111', fontSize: 12 }}>{polaroidCaption}</div>
+              </div>
             )}
           </div>
         </div>
@@ -518,6 +623,14 @@ export function EditorStudio() {
   const [textOverlay, setTextOverlay] = useState({ enabled: false, text: "Add text here", fontSize: 24, color: "#ffffff", position: "bottom-center" as "top-left" | "top-center" | "top-right" | "center" | "bottom-left" | "bottom-center" | "bottom-right" });
   const [cropSettings, setCropSettings] = useState({ enabled: false, left: 0, top: 0, width: 100, height: 100 });
   const [effectsAdvanced, setEffectsAdvanced] = useState({ glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 });
+
+  // Image editing state (new)
+  const [imageFilters, setImageFilters] = useState<ImageFilters>(DEFAULT_IMAGE_FILTERS);
+  const [imageAdjustments, setImageAdjustments] = useState<ImageAdjustments>(DEFAULT_IMAGE_ADJUSTMENTS);
+  const [imageOverlay, setImageOverlay] = useState<ImageOverlay>(DEFAULT_IMAGE_OVERLAY);
+  const [imageFrame, setImageFrame] = useState<ImageFrame>("none");
+  const [glowColor, setGlowColor] = useState<string>("#a855f7");
+  const [polaroidCaption, setPolaroidCaption] = useState<string>("");
 
   const previewRef  = useRef<HTMLDivElement>(null);
   const customizePanelRef = useRef<HTMLDivElement>(null);
@@ -1143,7 +1256,59 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
         {/* ── Mobile panels ─────────────────────────────────────────────── */}
         <div className="lg:hidden space-y-4 min-h-[500px]">
           {mobileTab === "input"   && <InputPanel />}
-          {mobileTab === "style"   && <CustomizePanel />}
+          {mobileTab === "style"   && (
+            <StyleControls
+              background={codeStyleConfig.background as any}
+              onBackgroundChange={(v) => updateCodeStyle({ background: v as any })}
+              padding={screenshotPadding}
+              onPaddingChange={setScreenshotPadding}
+              radius={screenshotRadius}
+              onRadiusChange={setScreenshotRadius}
+              shadow={screenshotShadow}
+              onShadowChange={setScreenshotShadow}
+              theme={"dark" as any}
+              onThemeChange={() => {}}
+              fontSize={codeStyleConfig.typography.fontSize}
+              onFontSizeChange={(n) => updateCodeStyle({ typography: { ...codeStyleConfig.typography, fontSize: n } })}
+              lineNumbers={false}
+              onLineNumbersChange={() => {}}
+              layout={"centered"}
+              onLayoutChange={() => {}}
+              watermark={codeStyleConfig.watermark.opacity > 0}
+              onWatermarkChange={(v) => updateCodeStyle({ watermark: { ...codeStyleConfig.watermark, opacity: v ? 0.3 : 0 } })}
+              hdExport={hdExport}
+              onHdExportChange={setHdExport}
+              opacity={screenshotOpacity}
+              onOpacityChange={setScreenshotOpacity}
+              tiltX={codeStyleConfig.perspective3D.tiltX}
+              onTiltXChange={(n) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltX: n } })}
+              tiltY={codeStyleConfig.perspective3D.tiltY}
+              onTiltYChange={(n) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltY: n } })}
+              showWindowButtons={codeStyleConfig.windowFrame.showButtons}
+              onShowWindowButtonsChange={(v) => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, showButtons: v } })}
+              cardTitle={codeStyleConfig.windowFrame.titleText}
+              onCardTitleChange={(s) => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, titleText: s } })}
+              aspectRatio={codeStyleConfig.layout.aspectRatio as any}
+              onAspectRatioChange={(a) => updateCodeStyle({ layout: { ...codeStyleConfig.layout, aspectRatio: a } })}
+              borderWidth={screenshotBorderWidth}
+              onBorderWidthChange={setScreenshotBorderWidth}
+              // image props
+              mode={mode}
+              imageFilters={imageFilters}
+              onImageFiltersChange={setImageFilters}
+              onApplyImagePreset={(id) => setImageFilters(prev => ({ ...prev, ...(IMAGE_FILTER_PRESETS as any)[id] }))}
+              imageAdjustments={imageAdjustments}
+              onImageAdjustmentsChange={setImageAdjustments}
+              imageOverlay={imageOverlay}
+              onImageOverlayChange={setImageOverlay}
+              imageFrame={imageFrame}
+              onImageFrameChange={setImageFrame}
+              glowColor={glowColor}
+              onGlowColorChange={setGlowColor}
+              polaroidCaption={polaroidCaption}
+              onPolaroidCaptionChange={setPolaroidCaption}
+            />
+          )}
           {mobileTab === "preview" && (
             <div className={`rounded-[20px] shadow-sm overflow-hidden ${surfaceClass}`}>
               {/* Header bar */}
@@ -1190,6 +1355,12 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     textOverlay={textOverlay}
                     cropSettings={cropSettings}
                     effectsAdvanced={effectsAdvanced}
+                    imageFilters={imageFilters}
+                    imageAdjustments={imageAdjustments}
+                    imageOverlay={imageOverlay}
+                    imageFrame={imageFrame}
+                    glowColor={glowColor}
+                    polaroidCaption={polaroidCaption}
                   />
                 </div>
               </div>
@@ -1221,8 +1392,58 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
 
           {/* Left sidebar */}
           <aside className="space-y-5">
-            <InputPanel />
-            <CustomizePanel />
+              <InputPanel />
+              <StyleControls
+                background={codeStyleConfig.background as any}
+                onBackgroundChange={(v) => updateCodeStyle({ background: v as any })}
+                padding={screenshotPadding}
+                onPaddingChange={setScreenshotPadding}
+                radius={screenshotRadius}
+                onRadiusChange={setScreenshotRadius}
+                shadow={screenshotShadow}
+                onShadowChange={setScreenshotShadow}
+                theme={"dark" as any}
+                onThemeChange={() => {}}
+                fontSize={codeStyleConfig.typography.fontSize}
+                onFontSizeChange={(n) => updateCodeStyle({ typography: { ...codeStyleConfig.typography, fontSize: n } })}
+                lineNumbers={false}
+                onLineNumbersChange={() => {}}
+                layout={"centered"}
+                onLayoutChange={() => {}}
+                watermark={codeStyleConfig.watermark.opacity > 0}
+                onWatermarkChange={(v) => updateCodeStyle({ watermark: { ...codeStyleConfig.watermark, opacity: v ? 0.3 : 0 } })}
+                hdExport={hdExport}
+                onHdExportChange={setHdExport}
+                opacity={screenshotOpacity}
+                onOpacityChange={setScreenshotOpacity}
+                tiltX={codeStyleConfig.perspective3D.tiltX}
+                onTiltXChange={(n) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltX: n } })}
+                tiltY={codeStyleConfig.perspective3D.tiltY}
+                onTiltYChange={(n) => updateCodeStyle({ perspective3D: { ...codeStyleConfig.perspective3D, tiltY: n } })}
+                showWindowButtons={codeStyleConfig.windowFrame.showButtons}
+                onShowWindowButtonsChange={(v) => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, showButtons: v } })}
+                cardTitle={codeStyleConfig.windowFrame.titleText}
+                onCardTitleChange={(s) => updateCodeStyle({ windowFrame: { ...codeStyleConfig.windowFrame, titleText: s } })}
+                aspectRatio={codeStyleConfig.layout.aspectRatio as any}
+                onAspectRatioChange={(a) => updateCodeStyle({ layout: { ...codeStyleConfig.layout, aspectRatio: a } })}
+                borderWidth={screenshotBorderWidth}
+                onBorderWidthChange={setScreenshotBorderWidth}
+                // image props
+                mode={mode}
+                imageFilters={imageFilters}
+                onImageFiltersChange={setImageFilters}
+                onApplyImagePreset={(id) => setImageFilters(prev => ({ ...prev, ...(IMAGE_FILTER_PRESETS as any)[id] }))}
+                imageAdjustments={imageAdjustments}
+                onImageAdjustmentsChange={setImageAdjustments}
+                imageOverlay={imageOverlay}
+                onImageOverlayChange={setImageOverlay}
+                imageFrame={imageFrame}
+                onImageFrameChange={setImageFrame}
+                glowColor={glowColor}
+                onGlowColorChange={setGlowColor}
+                polaroidCaption={polaroidCaption}
+                onPolaroidCaptionChange={setPolaroidCaption}
+              />
           </aside>
 
           {/* Right: preview */}
@@ -1271,6 +1492,12 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     textOverlay={textOverlay}
                     cropSettings={cropSettings}
                     effectsAdvanced={effectsAdvanced}
+                    imageFilters={imageFilters}
+                    imageAdjustments={imageAdjustments}
+                    imageOverlay={imageOverlay}
+                    imageFrame={imageFrame}
+                    glowColor={glowColor}
+                    polaroidCaption={polaroidCaption}
                   />
                 </div>
               </div>
