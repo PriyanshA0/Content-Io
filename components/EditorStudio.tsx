@@ -108,6 +108,9 @@ interface PreviewCardProps {
   screenshotVignette?: number;
   screenshotTintColor?: string;
   screenshotTintOpacity?: number;
+  textOverlay?: { enabled: boolean; text: string; fontSize: number; color: string; position: string };
+  cropSettings?: { enabled: boolean; left: number; top: number; width: number; height: number };
+  effectsAdvanced?: { glow: number; shadow: number; sepia: number; grayscale: number; invert: number };
 }
 
 const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
@@ -126,7 +129,10 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
     screenshotOpacity = 1,
     screenshotVignette = 0,
     screenshotTintColor = "#ffffff",
-    screenshotTintOpacity = 0
+    screenshotTintOpacity = 0,
+    textOverlay = { enabled: false, text: "", fontSize: 24, color: "#ffffff", position: "bottom-center" },
+    cropSettings = { enabled: false, left: 0, top: 0, width: 100, height: 100 },
+    effectsAdvanced = { glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 }
   }, ref) => {
     const bg = BACKGROUNDS[codeStyleConfig.background];
     const borderRadius = `${codeStyleConfig.decoration.cornerRadius}px`;
@@ -150,8 +156,35 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
       ? `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,${screenshotVignette * 0.5}) 100%)`
       : "none";
 
+    // Build complete filter string with advanced effects
+    const buildFilter = () => {
+      const baseFilter = `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation}) hue-rotate(${(screenshotFilter.hue || 0) * 3.6}deg) blur(${screenshotFilter.blur || 0}px)`;
+      const advancedFilter = `sepia(${(effectsAdvanced.sepia || 0) * 0.5}%) grayscale(${effectsAdvanced.grayscale || 0}%) invert(${(effectsAdvanced.invert || 0) * 0.01})`;
+      return `${baseFilter} ${advancedFilter}`;
+    };
+
+    // Get text position styles
+    const getTextPositionStyles = (position: string) => {
+      const posMap: Record<string, Record<string, string | number>> = {
+        "top-left": { top: "10px", left: "10px" },
+        "top-center": { top: "10px", left: "50%", transform: "translateX(-50%)" },
+        "top-right": { top: "10px", right: "10px" },
+        "center": { top: "50%", left: "50%", transform: "translate(-50%, -50%)" },
+        "bottom-left": { bottom: "10px", left: "10px" },
+        "bottom-center": { bottom: "10px", left: "50%", transform: "translateX(-50%)" },
+        "bottom-right": { bottom: "10px", right: "10px" },
+      };
+      return posMap[position] || posMap["bottom-center"];
+    };
+
     // For image mode - render without frame
     if (mode === "image" && imageUrl) {
+      const cropStyle = cropSettings.enabled 
+        ? {
+            clipPath: `inset(${cropSettings.top}% ${100 - cropSettings.left - cropSettings.width}% ${100 - cropSettings.top - cropSettings.height}% ${cropSettings.left}%)`,
+          }
+        : {};
+
       return (
         <div
           ref={ref}
@@ -161,7 +194,7 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
             background: bgStyleMap[screenshotBgStyle],
           }}
         >
-          <div className="relative inline-block w-full" style={{ opacity: screenshotOpacity }}>
+          <div className="relative inline-block w-full" style={{ opacity: screenshotOpacity, ...cropStyle }}>
             <img
               src={imageUrl}
               alt="Preview"
@@ -169,8 +202,8 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
               style={{ 
                 borderRadius: `${screenshotRadius}px`,
                 border: screenshotBorder ? `${screenshotBorderWidth}px solid ${screenshotBorderColor}` : "none",
-                boxShadow: screenshotShadow ? shadowMap[screenshotShadowStrength] : "none",
-                filter: `brightness(${screenshotFilter.brightness}) contrast(${screenshotFilter.contrast}) saturate(${screenshotFilter.saturation}) hue-rotate(${(screenshotFilter.hue || 0) * 3.6}deg) blur(${screenshotFilter.blur || 0}px)`,
+                boxShadow: screenshotShadow ? `${shadowMap[screenshotShadowStrength]}, inset 0 0 ${(effectsAdvanced.glow || 0) * 2}px rgba(255,255,255,${(effectsAdvanced.glow || 0) * 0.1})` : "none",
+                filter: buildFilter(),
                 maxHeight: "600px", 
                 maxWidth: "100%"
               }}
@@ -193,6 +226,34 @@ const PreviewCard = forwardRef<HTMLDivElement, PreviewCardProps>(
                   borderRadius: `${screenshotRadius}px`,
                   background: screenshotTintColor,
                   opacity: screenshotTintOpacity * 0.3,
+                }}
+              />
+            )}
+            {/* Text overlay */}
+            {textOverlay.enabled && textOverlay.text && (
+              <div
+                className="absolute pointer-events-none font-bold"
+                style={{
+                  ...getTextPositionStyles(textOverlay.position),
+                  fontSize: `${textOverlay.fontSize}px`,
+                  color: textOverlay.color,
+                  textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+                  fontFamily: "Arial, sans-serif",
+                  zIndex: 10,
+                  maxWidth: "90%",
+                  textAlign: "center",
+                }}
+              >
+                {textOverlay.text}
+              </div>
+            )}
+            {/* Glow/Shadow effect overlay */}
+            {effectsAdvanced.shadow > 0 && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  borderRadius: `${screenshotRadius}px`,
+                  background: `radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,${effectsAdvanced.shadow * 0.1}) 100%)`,
                 }}
               />
             )}
@@ -452,6 +513,11 @@ export function EditorStudio() {
   const [screenshotVignette, setScreenshotVignette] = useState(0);
   const [screenshotTintColor, setScreenshotTintColor] = useState("#ffffff");
   const [screenshotTintOpacity, setScreenshotTintOpacity] = useState(0);
+
+  // New features: Text, Cropping, Advanced Effects
+  const [textOverlay, setTextOverlay] = useState({ enabled: false, text: "Add text here", fontSize: 24, color: "#ffffff", position: "bottom-center" as "top-left" | "top-center" | "top-right" | "center" | "bottom-left" | "bottom-center" | "bottom-right" });
+  const [cropSettings, setCropSettings] = useState({ enabled: false, left: 0, top: 0, width: 100, height: 100 });
+  const [effectsAdvanced, setEffectsAdvanced] = useState({ glow: 0, shadow: 0, sepia: 0, grayscale: 0, invert: 0 });
 
   const previewRef  = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -841,6 +907,92 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
       </section>
       )}
 
+      {/* Text Overlay - Image only */}
+      {mode === "image" && (
+      <section className="space-y-3 pt-2 border-t border-slate-700/50">
+        <label className={`flex items-center justify-between text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>
+          Text Overlay
+          <input type="checkbox" checked={textOverlay.enabled} onChange={e => setTextOverlay({...textOverlay, enabled: e.target.checked})} className="accent-fuchsia-500 h-3.5 w-3.5" />
+        </label>
+        {textOverlay.enabled && (
+          <div className="space-y-2 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+            <input type="text" value={textOverlay.text} onChange={e => setTextOverlay({...textOverlay, text: e.target.value})} placeholder="Text to add..." className={`w-full rounded-lg border px-2 py-1.5 text-xs ${isDarkTheme ? "border-white/10 bg-slate-900 text-white" : "border-slate-200 bg-white"}`} />
+            <div className="flex gap-2">
+              <label className={`flex-1 flex justify-between text-xs text-slate-300`}>
+                Size: <span className="font-mono">{textOverlay.fontSize}px</span>
+              </label>
+              <input type="range" min="10" max="72" value={textOverlay.fontSize} onChange={e => setTextOverlay({...textOverlay, fontSize: Number(e.target.value)})} className="flex-1 accent-cyan-500" />
+            </div>
+            <div className="flex gap-2">
+              <label className={`text-xs text-slate-300`}>Color:</label>
+              <input type="color" value={textOverlay.color} onChange={e => setTextOverlay({...textOverlay, color: e.target.value})} className="h-6 w-12 rounded cursor-pointer" />
+            </div>
+            <label className={`block text-[9px] font-bold uppercase text-slate-400`}>Position</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["top-left", "top-center", "top-right", "center", "bottom-left", "bottom-center", "bottom-right"] as const).map(pos => (
+                <button key={pos} onClick={() => setTextOverlay({...textOverlay, position: pos})} className={`rounded text-[8px] font-medium py-1 ${textOverlay.position === pos ? "bg-cyan-400/20 border border-cyan-400 text-cyan-300" : "border border-white/10 text-slate-400 hover:bg-white/5"}`}>{pos.split("-").join("\n")}</button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+      )}
+
+      {/* Cropping - Image only */}
+      {mode === "image" && (
+      <section className="space-y-3 pt-2 border-t border-slate-700/50">
+        <label className={`flex items-center justify-between text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>
+          Crop & Scale
+          <input type="checkbox" checked={cropSettings.enabled} onChange={e => setCropSettings({...cropSettings, enabled: e.target.checked})} className="accent-fuchsia-500 h-3.5 w-3.5" />
+        </label>
+        {cropSettings.enabled && (
+          <div className="space-y-2 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+            <label className={`flex justify-between text-xs text-slate-300`}>
+              Width: <span className="font-mono">{cropSettings.width}%</span>
+            </label>
+            <input type="range" min="10" max="100" value={cropSettings.width} onChange={e => setCropSettings({...cropSettings, width: Number(e.target.value)})} className="w-full accent-cyan-500" />
+            <label className={`flex justify-between text-xs text-slate-300`}>
+              Height: <span className="font-mono">{cropSettings.height}%</span>
+            </label>
+            <input type="range" min="10" max="100" value={cropSettings.height} onChange={e => setCropSettings({...cropSettings, height: Number(e.target.value)})} className="w-full accent-cyan-500" />
+          </div>
+        )}
+      </section>
+      )}
+
+      {/* Advanced Effects - Image only */}
+      {mode === "image" && (
+      <section className="space-y-3 pt-2 border-t border-slate-700/50">
+        <label className={`block text-[10px] font-bold uppercase tracking-widest ${mutedClass}`}>Advanced Effects</label>
+        <div className="space-y-2 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+          <label className={`flex justify-between text-xs text-slate-300`}>
+            Glow: <span className="font-mono">{(effectsAdvanced.glow * 10).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0" max="10" step="0.5" value={effectsAdvanced.glow} onChange={e => setEffectsAdvanced({...effectsAdvanced, glow: Number(e.target.value)})} className="w-full accent-yellow-500" />
+
+          <label className={`flex justify-between text-xs text-slate-300`}>
+            Shadow: <span className="font-mono">{(effectsAdvanced.shadow * 100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0" max="1" step="0.05" value={effectsAdvanced.shadow} onChange={e => setEffectsAdvanced({...effectsAdvanced, shadow: Number(e.target.value)})} className="w-full accent-gray-500" />
+
+          <label className={`flex justify-between text-xs text-slate-300`}>
+            Sepia: <span className="font-mono">{(effectsAdvanced.sepia * 100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0" max="1" step="0.05" value={effectsAdvanced.sepia} onChange={e => setEffectsAdvanced({...effectsAdvanced, sepia: Number(e.target.value)})} className="w-full accent-orange-500" />
+
+          <label className={`flex justify-between text-xs text-slate-300`}>
+            Grayscale: <span className="font-mono">{(effectsAdvanced.grayscale * 100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0" max="1" step="0.05" value={effectsAdvanced.grayscale} onChange={e => setEffectsAdvanced({...effectsAdvanced, grayscale: Number(e.target.value)})} className="w-full accent-slate-500" />
+
+          <label className={`flex justify-between text-xs text-slate-300`}>
+            Invert: <span className="font-mono">{(effectsAdvanced.invert * 100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0" max="1" step="0.05" value={effectsAdvanced.invert} onChange={e => setEffectsAdvanced({...effectsAdvanced, invert: Number(e.target.value)})} className="w-full accent-red-500" />
+        </div>
+      </section>
+      )}
+
       {/* Export */}
       <section className="space-y-3">
         <label className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3 py-2.5 text-xs ${
@@ -1013,6 +1165,9 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     screenshotVignette={screenshotVignette}
                     screenshotTintColor={screenshotTintColor}
                     screenshotTintOpacity={screenshotTintOpacity}
+                    textOverlay={textOverlay}
+                    cropSettings={cropSettings}
+                    effectsAdvanced={effectsAdvanced}
                   />
                 </div>
               </div>
@@ -1091,6 +1246,9 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
                     screenshotVignette={screenshotVignette}
                     screenshotTintColor={screenshotTintColor}
                     screenshotTintOpacity={screenshotTintOpacity}
+                    textOverlay={textOverlay}
+                    cropSettings={cropSettings}
+                    effectsAdvanced={effectsAdvanced}
                   />
                 </div>
               </div>
@@ -1185,22 +1343,45 @@ std::vector<int> twoSum(std::vector<int>& nums, int target) {
         .preview-code pre { white-space: pre !important; }
         .preview-code code { white-space: pre !important; }
 
-        /* Prevent scroll jumping on customize panel */
+        /* COMPREHENSIVE SCROLL FIX - Prevent all scroll jumping */
         .custom-scrollbar {
           scroll-behavior: auto !important;
-          scroll-padding-top: 0 !important;
+          scroll-padding: 0 !important;
+          overflow-anchor: none;
         }
-        .custom-scrollbar input,
+        
+        /* Prevent focus from causing scroll on ALL elements */
+        .custom-scrollbar *:focus,
+        .custom-scrollbar *:focus-visible {
+          scroll-margin: 0 !important;
+          outline-offset: 0 !important;
+        }
+
+        /* Prevent scroll on input interactions */
+        .custom-scrollbar input[type="range"],
+        .custom-scrollbar input[type="checkbox"],
+        .custom-scrollbar input[type="text"],
+        .custom-scrollbar input[type="color"],
         .custom-scrollbar button,
         .custom-scrollbar label {
-          scroll-margin-top: 0 !important;
-          scroll-margin-bottom: 0 !important;
+          scroll-margin: 0 !important;
+          scroll-padding: 0 !important;
         }
+
+        /* Prevent section scroll anchoring */
         .custom-scrollbar section {
-          scroll-margin-top: 0 !important;
+          scroll-margin: 0 !important;
+          scroll-padding: 0 !important;
         }
-        /* Prevent focus from scrolling */
-        .custom-scrollbar *:focus {
+
+        /* Lock scroll position while interacting */
+        .custom-scrollbar:has(input:active),
+        .custom-scrollbar:has(button:active) {
+          overflow-y: hidden;
+        }
+
+        /* Ensure no automatic scroll on element insertion */
+        .custom-scrollbar * {
           scroll-margin: 0 !important;
         }
       `}</style>
